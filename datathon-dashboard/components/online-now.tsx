@@ -15,7 +15,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
-import { StatusIndicator } from "@/components/../../components/indicator";
+import { StatusIndicator } from "@/components/indicator";
 import {
 	ShareBarList,
 	ShareBarListContent,

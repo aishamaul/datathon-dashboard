@@ -29,7 +29,7 @@ export function AppSidebar() {
 				"*:data-[slot=sidebar-inner]:bg-background",
 				"transition-[left,right,top,width] group-data-[collapsible=offExamples]:top-[calc(var(--app-header-height)*0.5)]"
 			)}
-			collapsible="offExamples"
+			collapsible="offcanvas"
 			variant="sidebar"
 		>
 			<SidebarHeader className="h-(--app-header-height,3rem) flex-row items-center justify-between">

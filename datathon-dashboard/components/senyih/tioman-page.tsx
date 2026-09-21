@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Bar, BarChart, CartesianGrid, Cell, ComposedChart, Label, Legend, Line, ReferenceLine,
   ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis,
@@ -9,21 +9,11 @@ import type { Analysis } from '@/lib/engine/analysis';
 import { predictLcc } from '@/lib/engine/marine';
 import { SCENARIOS, SEARCH_BOUNDS, N_SEARCH, runScenario, type ScenarioKey } from '@/lib/engine/pareto';
 import { fmt1, fmt2, fmtInt, pct1, signedPct } from '@/lib/format';
-import { useChartColors } from './chart-theme';
+import { useChartColors, useNarrow } from './chart-theme';
 import { Badge, Callout, CardHeader, DnaTile, GlassCard, LiveBadge, StatTile } from './ui';
 
 // PAGE 2: THE MICRO STRESS-TEST (TIOMAN) + POLICY SIMULATOR.
 // Moving the management slider re-runs the full 50,000-scenario Pareto search from ml8.py.
-
-const NARROW_QUERY = '(max-width: 639px)';
-const subscribeNarrow = (onChange: () => void) => {
-  const mq = window.matchMedia(NARROW_QUERY);
-  mq.addEventListener('change', onChange);
-  return () => mq.removeEventListener('change', onChange);
-};
-/** True on phone-width screens, where the three scenario labels would collide. */
-const useNarrow = () =>
-  useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW_QUERY).matches, () => false);
 
 export function TiomanPage({ analysis }: { analysis: Analysis }) {
   const c = useChartColors();
@@ -154,12 +144,16 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
 
           <GlassCard className="p-6">
             <CardHeader title="EHI by management level" sub="Same search, three disturbance scenarios" />
-            <div className="h-36">
+            <div className="h-52">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={compare} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                <BarChart data={compare} margin={{ top: 10, right: 16, left: 4, bottom: 22 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={c.grid} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }} dy={6} />
-                  <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v}%`} tick={{ fill: c.tickLeft, fontSize: 12 }} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }} dy={6}>
+                    <Label value="Disturbance management level" position="insideBottom" offset={-14} fill={c.tickX} fontSize={12} />
+                  </XAxis>
+                  <YAxis width={64} domain={[0, 100]} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v}%`} tick={{ fill: c.tickLeft, fontSize: 12 }}>
+                    <Label value="Composite EHI (%)" angle={-90} position="insideLeft" offset={10} fill={c.tickLeft} fontSize={12} style={{ textAnchor: 'middle' }} />
+                  </YAxis>
                   <Tooltip {...c.tooltip} cursor={{ fill: c.cursorFill }} formatter={(v) => `${fmt1(Number(v))}%`} />
                   <defs>
                     <linearGradient id="tm-ehi-bar" x1="0" y1="0" x2="0" y2="1">

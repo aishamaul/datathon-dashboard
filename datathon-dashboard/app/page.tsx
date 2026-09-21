@@ -18,6 +18,9 @@ import { ThemeToggle } from '@/components/senyih/theme-toggle';
 /** The workbook every number on this dashboard is computed from (served from /public). */
 const EXCEL_PATH = '/data_new.xlsx';
 
+/** Optional GDP / employment history for the revenue regressions (the analysis notebook's workbook). */
+const HISTORY_PATH = '/data_cleaned.xlsx';
+
 type PageId = 'macro' | 'micro';
 
 const pills: { id: PageId; label: string; short: string }[] = [
@@ -66,15 +69,26 @@ export default function DashboardApp() {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch(EXCEL_PATH, { cache: 'no-store' });
+        const [res, historyRes] = await Promise.all([
+          fetch(EXCEL_PATH, { cache: 'no-store' }),
+          fetch(HISTORY_PATH, { cache: 'no-store' }).catch(() => null),
+        ]);
         if (!res.ok) {
           throw new Error(
             `Could not load ${EXCEL_PATH} (HTTP ${res.status}). Make sure data_new.xlsx is inside your project's public/ folder.`
           );
         }
-        const buffer = await res.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const built = buildAnalysis(workbook);
+        const workbook = XLSX.read(await res.arrayBuffer(), { type: 'array' });
+        // The history workbook is optional: without it the two revenue regressions use only data_new.xlsx.
+        let history: XLSX.WorkBook | null = null;
+        if (historyRes && historyRes.ok) {
+          try {
+            history = XLSX.read(await historyRes.arrayBuffer(), { type: 'array' });
+          } catch {
+            history = null;
+          }
+        }
+        const built = buildAnalysis(workbook, history);
         if (!cancelled) setAnalysis(built);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Bar, BarChart, CartesianGrid, Cell, ComposedChart, Label, Legend, Line, ReferenceLine,
   ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis,
@@ -10,13 +10,25 @@ import { predictLcc } from '@/lib/engine/marine';
 import { SCENARIOS, SEARCH_BOUNDS, N_SEARCH, runScenario, type ScenarioKey } from '@/lib/engine/pareto';
 import { fmt1, fmt2, fmtInt, pct1, signedPct } from '@/lib/format';
 import { useChartColors } from './chart-theme';
-import { Badge, Callout, CardHeader, DnaTile, GlassCard, StatTile } from './ui';
+import { Badge, Callout, CardHeader, DnaTile, GlassCard, LiveBadge, StatTile } from './ui';
 
 // PAGE 2: THE MICRO STRESS-TEST (TIOMAN) + POLICY SIMULATOR.
 // Moving the management slider re-runs the full 50,000-scenario Pareto search from ml8.py.
 
+const NARROW_QUERY = '(max-width: 639px)';
+const subscribeNarrow = (onChange: () => void) => {
+  const mq = window.matchMedia(NARROW_QUERY);
+  mq.addEventListener('change', onChange);
+  return () => mq.removeEventListener('change', onChange);
+};
+/** True on phone-width screens, where the three scenario labels would collide. */
+const useNarrow = () =>
+  useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW_QUERY).matches, () => false);
+
 export function TiomanPage({ analysis }: { analysis: Analysis }) {
   const c = useChartColors();
+  const narrow = useNarrow();
+  const legendText = (value: string) => <span style={{ color: c.tickX }}>{value}</span>;
   const { marine } = analysis;
   const { setup, scenarios } = analysis.islands.Tioman;
   const [levelIdx, setLevelIdx] = useState(1); // start on "Current"
@@ -51,22 +63,22 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
   return (
     <div className="space-y-5 text-sky-950 dark:text-sky-50">
       {/* Top banner (reflects the selected management level) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="senyih-stagger grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <DnaTile weights={setup.weights} island="Tioman" />
         <StatTile
           id="tm-cap" title="Recommended cap" sub={`${result.short} management · Pareto knee`}
-          value={`${fmtInt(result.capK)}k visitors`}
+          value={`${fmtInt(result.capK)}k`} unit="visitors"
           note={`${signedPct(result.capVsPeakPct)} vs ${setup.peakYear} peak (${fmtInt(setup.maxVolK)}k)`}
           ring={Math.abs(result.capVsPeakPct)}
         />
         <StatTile
           id="tm-alos" title="Target ALOS" sub={`Current ${fmt2(setup.currentAlos)} nights`}
-          value={`${fmt2(result.alos)} nights`}
+          value={fmt2(result.alos)} unit="nights"
           note={`${signedPct(result.alosVsCurrentPct)} vs current${atAlosCeiling ? ' · at search ceiling' : ''}`}
           ring={Math.abs(result.alosVsCurrentPct)}
         />
         <StatTile
-          id="tm-ehi" title="Composite ecological health" sub="EHI at the recommended point"
+          id="tm-ehi" title="Ecological health" sub="EHI at the recommended point"
           value={pct1(result.ehi)}
           note={`Marine ${pct1(result.hMarine)} · waste limit ${fmtInt(setup.wasteLimitTons)} t`}
           ring={result.ehi * 100}
@@ -103,7 +115,7 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
                     cursor={{ strokeDasharray: '3 3' }}
                     formatter={(v) => (typeof v === 'number' ? `${fmt1(v)}%` : String(v))}
                   />
-                  <Legend iconType="circle" verticalAlign="top" wrapperStyle={{ paddingBottom: '8px' }} />
+                  <Legend iconType="circle" iconSize={9} verticalAlign="top" wrapperStyle={{ paddingBottom: '8px', fontSize: 12 }} formatter={legendText} />
                   {SCENARIOS.map((s) => {
                     const x = scenarios[s.key].disturbance * 100;
                     const active = s.key === level;
@@ -112,7 +124,9 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
                         key={s.key} x={x} stroke={active ? c.amber : c.muted} strokeWidth={active ? 2 : 1}
                         strokeDasharray={active ? undefined : '4 4'}
                       >
-                        <Label value={s.short} position="insideTopRight" fill={active ? c.tickRight : c.muted} fontSize={11} fontWeight="bold" />
+                        {(!narrow || active) && (
+                          <Label value={s.short} position="insideTopRight" fill={active ? c.tickRight : c.muted} fontSize={11} fontWeight="bold" />
+                        )}
                       </ReferenceLine>
                     );
                   })}
@@ -138,24 +152,32 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
             </p>
           </GlassCard>
 
-          <Callout tone="sky" title="What the regression shows">
-            Disturbance explains {fmt1(marine.r2 * 100)}% of variance in live coral cover (coefficient {marine.disturbanceCoef.toFixed(2)} per unit of
-            disturbance). Model LOO MAE is {marine.looMae.toFixed(3)} vs baseline {marine.baselineMae.toFixed(3)} ({fmt1(marine.skillPct)}% skill
-            better than baseline). Visitors operate through disturbance, not directly.
-          </Callout>
-
           <GlassCard className="p-6">
             <CardHeader title="EHI by management level" sub="Same search, three disturbance scenarios" />
-            <div className="h-44">
+            <div className="h-36">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={compare} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={c.grid} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }} dy={6} />
                   <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v}%`} tick={{ fill: c.tickLeft, fontSize: 12 }} />
                   <Tooltip {...c.tooltip} cursor={{ fill: c.cursorFill }} formatter={(v) => `${fmt1(Number(v))}%`} />
-                  <Bar dataKey="ehi" name="EHI" fill={c.skyBright} radius={[8, 8, 0, 0]} barSize={36}>
+                  <defs>
+                    <linearGradient id="tm-ehi-bar" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={c.skyBright} />
+                      <stop offset="100%" stopColor={c.sky} stopOpacity={0.75} />
+                    </linearGradient>
+                    <linearGradient id="tm-ehi-active" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={c.amber} />
+                      <stop offset="100%" stopColor={c.amber} stopOpacity={0.7} />
+                    </linearGradient>
+                  </defs>
+                  <Bar dataKey="ehi" name="EHI" fill="url(#tm-ehi-bar)" radius={[8, 8, 0, 0]} barSize={36}>
                     {compare.map((d) => (
-                      <Cell key={d.key} fill={d.key === level ? c.amber : c.skyBright} fillOpacity={d.key === level ? 1 : 0.55} />
+                      <Cell
+                        key={d.key}
+                        fill={d.key === level ? 'url(#tm-ehi-active)' : 'url(#tm-ehi-bar)'}
+                        fillOpacity={d.key === level ? 1 : 0.55}
+                      />
                     ))}
                   </Bar>
                 </BarChart>
@@ -170,7 +192,7 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
             <CardHeader
               title="Disturbance management simulator"
               sub={`Re-runs the ${fmtInt(N_SEARCH)}-scenario Pareto search on every change`}
-              right={<Badge tone="amber">Live</Badge>}
+              right={<LiveBadge>Live</LiveBadge>}
             />
 
             <label htmlFor="mgmt-level" className="text-xs font-bold text-sky-800 dark:text-sky-200">
@@ -200,10 +222,12 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
             </div>
             <p className="mt-2 text-xs text-sky-700/80 dark:text-sky-300/80">{result.label}</p>
 
-            <div className="mt-5 rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-700 text-white p-6 shadow-lg shadow-sky-700/25">
-              <p className="text-xs font-bold text-sky-100">Composite EHI ceiling</p>
-              <p className="text-5xl font-black tracking-tight mt-1">{pct1(result.ehi)}</p>
-              <p className="text-xs text-sky-100 mt-2">
+            <div className="relative mt-5 overflow-hidden rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-700 text-white p-6 shadow-lg shadow-sky-700/25 ring-1 ring-inset ring-white/15">
+              <div className="pointer-events-none absolute -right-10 -top-12 h-44 w-44 rounded-full bg-white/15 blur-2xl" aria-hidden="true" />
+              <div className="pointer-events-none absolute -bottom-16 -left-8 h-40 w-40 rounded-full bg-cyan-300/20 blur-2xl" aria-hidden="true" />
+              <p className="relative text-xs font-bold text-sky-100">Composite EHI ceiling</p>
+              <p className="relative text-5xl font-black tracking-tight tabular-nums mt-1">{pct1(result.ehi)}</p>
+              <p className="relative text-xs text-sky-100 mt-2">
                 {level === 'current'
                   ? 'Baseline for comparison'
                   : `${ehiDeltaPts > 0 ? '+' : '−'}${Math.abs(ehiDeltaPts).toFixed(1)} pts vs current management`}
@@ -242,6 +266,12 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
           </GlassCard>
         </div>
       </div>
+
+      <Callout tone="sky" title="What the regression shows">
+        Disturbance explains {fmt1(marine.r2 * 100)}% of variance in live coral cover (coefficient {marine.disturbanceCoef.toFixed(2)} per unit of
+        disturbance). Model LOO MAE is {marine.looMae.toFixed(3)} vs baseline {marine.baselineMae.toFixed(3)} ({fmt1(marine.skillPct)}% skill
+        better than baseline). Visitors operate through disturbance, not directly.
+      </Callout>
     </div>
   );
 }

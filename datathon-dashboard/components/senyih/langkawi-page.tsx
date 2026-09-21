@@ -18,6 +18,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
   const { setup, scenarios } = analysis.islands.Langkawi;
   const s = scenarios.current;
   const { forecast, yieldTrap, decoupling } = analysis;
+  const legendText = (value: string) => <span style={{ color: c.tickX }}>{value}</span>;
 
   const atAlosCeiling = Math.abs(s.alos / setup.currentAlos - SEARCH_BOUNDS.alosHi) < 0.005;
 
@@ -40,7 +41,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
   return (
     <div className="space-y-5 text-sky-950 dark:text-sky-50">
       {/* Top banner: DNA & limits */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="senyih-stagger grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <DnaTile weights={setup.weights} island="Langkawi" />
         <StatTile
           id="lk-cap" title="Target annual cap" sub="Pareto knee · current disturbance"
@@ -50,12 +51,12 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
         />
         <StatTile
           id="lk-alos" title="Target ALOS" sub={`Current ${fmt2(setup.currentAlos)} nights`}
-          value={`${fmt2(s.alos)} nights`}
+          value={fmt2(s.alos)} unit="nights"
           note={`${signedPct(s.alosVsCurrentPct)} vs current${atAlosCeiling ? ' · at search ceiling' : ''}`}
           ring={Math.abs(s.alosVsCurrentPct)}
         />
         <StatTile
-          id="lk-ehi" title="Composite ecological health" sub="EHI at the recommended point"
+          id="lk-ehi" title="Ecological health" sub="EHI at the recommended point"
           value={pct1(s.ehi)}
           note={`Marine ${pct1(s.hMarine)} · waste limit ${fmtInt(setup.wasteLimitTons)} t`}
           ring={s.ehi * 100}
@@ -63,7 +64,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
       </div>
 
       {/* Top row: the economic reality (SDG 8 & 12) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="senyih-stagger grid grid-cols-1 lg:grid-cols-2 gap-5">
         <GlassCard className="p-6">
           <CardHeader
             title="Chart 1A · The yield trap"
@@ -84,7 +85,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
                     cursor={{ stroke: c.refLine, strokeWidth: 1 }}
                     formatter={(v) => (typeof v === 'number' ? fmt1(v) : String(v))}
                   />
-                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '12px' }} />
+                  <Legend iconType="circle" iconSize={9} wrapperStyle={{ paddingTop: '12px', fontSize: 12 }} formatter={legendText} />
                   <ReferenceLine y={100} stroke={c.muted} strokeDasharray="4 4" />
                   <Line type="monotone" dataKey="alosIndex" name="ALOS (first year = 100)" stroke={c.sky} strokeWidth={3} dot={{ r: 4 }} />
                   <Line type="monotone" dataKey="yieldIndex" name="Yield per night (first year = 100)" stroke={c.amber} strokeWidth={3} dot={{ r: 4 }} />
@@ -136,7 +137,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
       </div>
 
       {/* Bottom row: the policy engine output (SDG 9 & 11) */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+      <div className="senyih-stagger grid grid-cols-1 xl:grid-cols-2 gap-5">
         <GlassCard className="p-6 relative overflow-hidden">
           <WaveBackdrop />
           <div className="relative">
@@ -200,13 +201,31 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
                       cursor={{ fill: c.cursorFill }}
                       formatter={(v) => (Array.isArray(v) ? `${fmtInt(Number(v[0]))}k – ${fmtInt(Number(v[1]))}k` : `${fmtInt(Number(v))}k`)}
                     />
-                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '12px' }} />
+                    <Legend iconType="circle" iconSize={9} wrapperStyle={{ paddingTop: '12px', fontSize: 12 }} formatter={legendText} />
+                    <defs>
+                      <linearGradient id="lk-quota-bar" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c.skyBright} />
+                        <stop offset="100%" stopColor={c.sky} stopOpacity={0.75} />
+                      </linearGradient>
+                      <linearGradient id="lk-quota-peak" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c.amber} />
+                        <stop offset="100%" stopColor={c.amber} stopOpacity={0.7} />
+                      </linearGradient>
+                      <linearGradient id="lk-quota-trough" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={c.rose} />
+                        <stop offset="100%" stopColor={c.rose} stopOpacity={0.7} />
+                      </linearGradient>
+                    </defs>
                     <Area yAxisId="right" dataKey="band" name="Demand 95% band" stroke="none" fill={c.amber} fillOpacity={0.16} isAnimationActive={false} />
-                    <Bar yAxisId="left" dataKey="quota" name="Enforced quota" fill={c.skyBright} radius={[8, 8, 0, 0]} maxBarSize={30}>
+                    <Bar yAxisId="left" dataKey="quota" name="Enforced quota" fill="url(#lk-quota-bar)" radius={[8, 8, 0, 0]} maxBarSize={30}>
                       {quotaData.map((q) => (
                         <Cell
                           key={q.label}
-                          fill={q.label === forecast!.peak.label ? c.amber : q.label === forecast!.trough.label ? c.rose : c.skyBright}
+                          fill={
+                            q.label === forecast!.peak.label ? 'url(#lk-quota-peak)'
+                              : q.label === forecast!.trough.label ? 'url(#lk-quota-trough)'
+                                : 'url(#lk-quota-bar)'
+                          }
                         />
                       ))}
                     </Bar>

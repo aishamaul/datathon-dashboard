@@ -98,6 +98,17 @@ const subscribe = () => () => {};
 /** False during SSR and hydration, true once running in the browser (no setState-in-effect). */
 export const useMounted = () => useSyncExternalStore(subscribe, () => true, () => false);
 
+const NARROW_QUERY = '(max-width: 639px)';
+const subscribeNarrow = (onChange: () => void) => {
+  const mq = window.matchMedia(NARROW_QUERY);
+  mq.addEventListener('change', onChange);
+  return () => mq.removeEventListener('change', onChange);
+};
+
+/** True on phone-width screens, where charts need tighter axes and fewer labels. */
+export const useNarrow = () =>
+  useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW_QUERY).matches, () => false);
+
 /** Palette for the active theme; the light palette until the client has mounted (avoids hydration mismatch). */
 export function useChartColors(): ChartColors {
   const { resolvedTheme } = useTheme();

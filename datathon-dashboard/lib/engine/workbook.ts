@@ -54,14 +54,18 @@ export interface SocioRow {
   visitorsK: number | null;
   alos: number | null;
   receiptsM: number | null;
-  receiptsPerTripRM: number | null;
   decoupling: number | null;
+  /** Services-sector GDP, RM million (optional column). */
+  services: number | null;
+  /** Unemployment rate, % (optional column). */
+  unemploymentPct: number | null;
 }
 
 export interface MonthlyRow {
   year: number;
   month: number; // 1-12
   total: number;
+  international: number | null;
 }
 
 export interface WorkbookData {
@@ -77,7 +81,7 @@ const MONTH_NUM: Record<string, number> = {
   JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12,
 };
 
-const toNum = (v: unknown): number | null => {
+export const toNum = (v: unknown): number | null => {
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
   if (typeof v === 'string' && v.trim() !== '') {
     const n = Number(v);
@@ -133,8 +137,9 @@ export function readWorkbook(wb: XLSX.WorkBook): WorkbookData {
     visitorsK: toNum(r['Domestic_Visitors_k']),
     alos: toNum(r['Average_Length_of_Stay_nights']),
     receiptsM: toNum(r['Tourism_Receipts_RM_mil']),
-    receiptsPerTripRM: toNum(r['Avg_Receipts_Per_Trip_RM']),
     decoupling: toNum(r['Decoupling_Index_RM_per_Ton']),
+    services: toNum(r['Services']),
+    unemploymentPct: toNum(r['Unemployment_Rate_pct']),
   }));
 
   // ml8.py: the first sheet whose name contains "month" holds the monthly arrivals.
@@ -148,7 +153,8 @@ export function readWorkbook(wb: XLSX.WorkBook): WorkbookData {
       const month = MONTH_NUM[String(r['MONTH']).trim().toUpperCase()];
       const year = toNum(r['YEAR']);
       const total = toNum(r['TOTAL']);
-      return year !== null && total !== null && month ? ({ year, month, total } as MonthlyRow) : null;
+      const international = toNum(r['INTERNATIONAL']);
+      return year !== null && total !== null && month ? ({ year, month, total, international } as MonthlyRow) : null;
     })
     .filter((r): r is MonthlyRow => r !== null)
     .sort((a, b) => a.year - b.year || a.month - b.month);

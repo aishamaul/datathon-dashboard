@@ -3,21 +3,23 @@
 import { useMemo } from 'react';
 import {
   Area, Bar, CartesianGrid, Cell, ComposedChart, Label, Legend, Line, LineChart, ReferenceDot,
-  ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis,
+  ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import type { Analysis } from '@/lib/engine/analysis';
 import { SEARCH_BOUNDS, N_SEARCH } from '@/lib/engine/pareto';
 import { fmt1, fmt2, fmtInt, pct1, signedPct } from '@/lib/format';
-import { useChartColors } from './chart-theme';
+import { useChartColors, useNarrow } from './chart-theme';
+import { ArrivalsTrendCard, CatalystCard, CoralChangeCard, RegressionCard } from './insight-charts';
 import { Badge, Callout, CardHeader, DnaTile, GlassCard, StatTile, WaveBackdrop } from './ui';
 
 // PAGE 1: THE MACRO ANCHOR (LANGKAWI). Every number comes from the engine's Current-disturbance scenario.
 
 export function LangkawiPage({ analysis }: { analysis: Analysis }) {
   const c = useChartColors();
+  const narrow = useNarrow();
   const { setup, scenarios } = analysis.islands.Langkawi;
   const s = scenarios.current;
-  const { forecast, yieldTrap, decoupling } = analysis;
+  const { forecast, decoupling, economy, catalyst, coralChange, arrivals } = analysis;
   const legendText = (value: string) => <span style={{ color: c.tickX }}>{value}</span>;
 
   const atAlosCeiling = Math.abs(s.alos / setup.currentAlos - SEARCH_BOUNDS.alosHi) < 0.005;
@@ -37,6 +39,10 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
     demand: q.demandK,
     band: [q.lowerK, q.upperK] as [number, number],
   }));
+
+  const historyNote = economy.historyLoaded
+    ? ''
+    : ' Only the years found in data_new.xlsx were used because data_cleaned.xlsx could not be loaded.';
 
   return (
     <div className="space-y-5 text-sky-950 dark:text-sky-50">
@@ -63,44 +69,47 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
         />
       </div>
 
-      {/* Top row: the economic reality (SDG 8 & 12) */}
+      {/* Demand: tourist arrivals, yearly or by month */}
+      <ArrivalsTrendCard arrivals={arrivals} />
+
+      {/* The economic reality: what tourism revenue buys the island */}
+      <div className="senyih-stagger grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <RegressionCard
+          title="Chart 1A · Economic engine"
+          result={economy.gdp}
+          tone="sky"
+          badgeTone="sky"
+          xLabel="Tourism receipts (RM million)"
+          yLabel="Services GDP (RM million)"
+          yName="Services GDP"
+          yTick={(v) => fmtInt(v)}
+          yTip={(v) => `RM ${fmtInt(v)}M`}
+          note={`Each dot is one year. The line is the ordinary-least-squares fit of services GDP on tourism receipts, and the shaded band is its 95% confidence interval.${historyNote}`}
+          missing="Needs services GDP for at least three years that also have tourism receipts (the GDP sheet in data_cleaned.xlsx)."
+        />
+        <RegressionCard
+          title="Chart 1B · Grassroots impact"
+          result={economy.unemployment}
+          tone="rose"
+          badgeTone="amber"
+          xLabel="Tourism receipts (RM million)"
+          yLabel="Unemployment rate (%)"
+          yName="Unemployment rate"
+          yTick={(v) => `${+v.toFixed(2)}%`}
+          yTip={(v) => `${fmt1(v)}%`}
+          note={`Each dot is one year. The line is the ordinary-least-squares fit of the unemployment rate on tourism receipts, and the shaded band is its 95% confidence interval.${historyNote}`}
+          missing="Needs unemployment rates for at least three years that also have tourism receipts (the employment sheet in data_cleaned.xlsx)."
+        />
+      </div>
+
+      {/* Policy: did the interventions extend stays? */}
+      {catalyst && <CatalystCard catalyst={catalyst} />}
+
+      {/* Sustainability: waste efficiency and reef resilience */}
       <div className="senyih-stagger grid grid-cols-1 lg:grid-cols-2 gap-5">
         <GlassCard className="p-6">
           <CardHeader
-            title="Chart 1A · The yield trap"
-            sub={yieldTrap
-              ? `${yieldTrap.points[0].year}–${yieldTrap.points[yieldTrap.points.length - 1].year}: ALOS ${signedPct(yieldTrap.alosChangePct)} while yield per night ${signedPct(yieldTrap.yieldChangePct)}`
-              : 'Needs ALOS and receipts per trip in Langkawi_Socioeconomic_Master'}
-            right={<Badge tone="sky">SDG 8</Badge>}
-          />
-          <div className="h-72">
-            {yieldTrap && (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={yieldTrap.points} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={c.grid} />
-                  <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }} dy={8} />
-                  <YAxis domain={['auto', 'auto']} axisLine={false} tickLine={false} tick={{ fill: c.tickLeft, fontSize: 12 }} />
-                  <Tooltip
-                    {...c.tooltip}
-                    cursor={{ stroke: c.refLine, strokeWidth: 1 }}
-                    formatter={(v) => (typeof v === 'number' ? fmt1(v) : String(v))}
-                  />
-                  <Legend iconType="circle" iconSize={9} wrapperStyle={{ paddingTop: '12px', fontSize: 12 }} formatter={legendText} />
-                  <ReferenceLine y={100} stroke={c.muted} strokeDasharray="4 4" />
-                  <Line type="monotone" dataKey="alosIndex" name="ALOS (first year = 100)" stroke={c.sky} strokeWidth={3} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="yieldIndex" name="Yield per night (first year = 100)" stroke={c.amber} strokeWidth={3} dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <p className="mt-3 text-xs text-sky-700/80 dark:text-sky-300/80">
-            Yield per night = average receipts per trip ÷ ALOS. Longer stays that don&apos;t raise spend quality add nights, not value.
-          </p>
-        </GlassCard>
-
-        <GlassCard className="p-6">
-          <CardHeader
-            title="Chart 1B · The decoupling warning"
+            title="Sustainability · The decoupling warning"
             sub={decoupling
               ? `Peaked in ${decoupling.peakYear} at RM ${fmtInt(decoupling.peakValue / 1000)}k per tonne of waste; ${decoupling.latestYear} is ${signedPct(decoupling.changeFromPeakPct)} from peak`
               : 'Needs Decoupling_Index_RM_per_Ton in Langkawi_Socioeconomic_Master'}
@@ -109,14 +118,18 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
           <div className="h-72">
             {decoupling && (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={decoupling.points} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <LineChart data={decoupling.points} margin={{ top: 10, right: 16, left: 4, bottom: 22 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={c.grid} />
-                  <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }} dy={8} />
+                  <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }} dy={8}>
+                    <Label value="Year" position="insideBottom" offset={-14} fill={c.tickX} fontSize={12} />
+                  </XAxis>
                   <YAxis
-                    domain={['auto', 'auto']} axisLine={false} tickLine={false}
+                    width={64} domain={['auto', 'auto']} axisLine={false} tickLine={false}
                     tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
                     tick={{ fill: c.tickLeft, fontSize: 12 }}
-                  />
+                  >
+                    <Label value="Revenue per tonne of waste (RM / t)" angle={-90} position="insideLeft" offset={10} fill={c.tickLeft} fontSize={12} style={{ textAnchor: 'middle' }} />
+                  </YAxis>
                   <Tooltip
                     {...c.tooltip}
                     cursor={{ stroke: c.refLine, strokeWidth: 1 }}
@@ -134,9 +147,11 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
             Revenue earned per tonne of waste. Falling values mean each ringgit now costs more waste.
           </p>
         </GlassCard>
+
+        {coralChange && <CoralChangeCard coral={coralChange} />}
       </div>
 
-      {/* Bottom row: the policy engine output (SDG 9 & 11) */}
+      {/* The policy engine output (SDG 9 & 11) */}
       <div className="senyih-stagger grid grid-cols-1 xl:grid-cols-2 gap-5">
         <GlassCard className="p-6 relative overflow-hidden">
           <WaveBackdrop />
@@ -191,17 +206,23 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
             <>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={quotaData} margin={{ top: 10, right: 0, left: -10, bottom: 0 }}>
+                  <ComposedChart data={quotaData} margin={{ top: 10, right: 4, left: 4, bottom: 22 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={c.grid} />
-                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }} dy={8} />
-                    <YAxis yAxisId="left" axisLine={false} tickLine={false} tickFormatter={(v: number) => `${Math.round(v)}k`} tick={{ fill: c.tickLeft, fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tickFormatter={(v: number) => `${Math.round(v)}k`} tick={{ fill: c.tickRight, fontSize: 12 }} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }} dy={8}>
+                      <Label value={`Month (${forecast!.forecastYear})`} position="insideBottom" offset={-14} fill={c.tickX} fontSize={12} />
+                    </XAxis>
+                    <YAxis yAxisId="left" width={narrow ? 50 : 64} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${Math.round(v)}k`} tick={{ fill: c.tickLeft, fontSize: 12 }}>
+                      <Label value="Enforced quota (thousand visitors)" angle={-90} position="insideLeft" offset={10} fill={c.tickLeft} fontSize={12} style={{ textAnchor: 'middle' }} />
+                    </YAxis>
+                    <YAxis yAxisId="right" orientation="right" width={narrow ? 50 : 64} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${Math.round(v)}k`} tick={{ fill: c.tickRight, fontSize: 12 }}>
+                      <Label value="Forecast demand (thousand visitors)" angle={90} position="insideRight" offset={10} fill={c.tickRight} fontSize={12} style={{ textAnchor: 'middle' }} />
+                    </YAxis>
                     <Tooltip
                       {...c.tooltip}
                       cursor={{ fill: c.cursorFill }}
                       formatter={(v) => (Array.isArray(v) ? `${fmtInt(Number(v[0]))}k – ${fmtInt(Number(v[1]))}k` : `${fmtInt(Number(v))}k`)}
                     />
-                    <Legend iconType="circle" iconSize={9} wrapperStyle={{ paddingTop: '12px', fontSize: 12 }} formatter={legendText} />
+                    <Legend iconType="circle" iconSize={9} verticalAlign="top" wrapperStyle={{ paddingBottom: '8px', fontSize: 12 }} formatter={legendText} />
                     <defs>
                       <linearGradient id="lk-quota-bar" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={c.skyBright} />

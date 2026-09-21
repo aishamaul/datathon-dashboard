@@ -4,6 +4,7 @@ import { ISLAND_CONFIG, ISLAND_KEYS, readWorkbook, type IslandKey, type Workbook
 import { trainPooledMarineModel, type MarineModel } from './marine';
 import { prepareSearch, runAllScenarios, type ParetoSetup, type ScenarioKey, type ScenarioResult } from './pareto';
 import { buildForecast, type ForecastResult } from './forecast';
+import { buildLangkawiInsights, readHistory, type LangkawiInsights } from './langkawi';
 import type * as XLSX from 'xlsx';
 
 export interface IslandAnalysis {
@@ -12,30 +13,17 @@ export interface IslandAnalysis {
   scenarios: Record<ScenarioKey, ScenarioResult>;
 }
 
-export interface YieldTrapPoint {
-  year: number;
-  alosIndex: number;
-  yieldIndex: number;
-  alos: number;
-  yieldPerNightRM: number;
-}
-
 export interface DecouplingPoint {
   year: number;
   value: number;
 }
 
-export interface Analysis {
+export interface Analysis extends LangkawiInsights {
   data: WorkbookData;
   marine: MarineModel;
   islands: Record<IslandKey, IslandAnalysis>;
   forecast: ForecastResult | null;
   forecastError: string | null;
-  yieldTrap: {
-    points: YieldTrapPoint[];
-    alosChangePct: number;
-    yieldChangePct: number;
-  } | null;
   decoupling: {
     points: DecouplingPoint[];
     peakYear: number;
@@ -46,7 +34,11 @@ export interface Analysis {
   } | null;
 }
 
-export function buildAnalysis(wb: XLSX.WorkBook): Analysis {
+/**
+ * `historyWb` is the optional GDP / employment history workbook (the notebook's data_cleaned.xlsx);
+ * without it the two revenue regressions fall back to whatever years data_new.xlsx itself provides.
+ */
+export function buildAnalysis(wb: XLSX.WorkBook, historyWb: XLSX.WorkBook | null = null): Analysis {
   const data = readWorkbook(wb);
   const marine = trainPooledMarineModel(data.coral);
 
@@ -68,24 +60,7 @@ export function buildAnalysis(wb: XLSX.WorkBook): Analysis {
     forecastError = e instanceof Error ? e.message : String(e);
   }
 
-  // 1A: ALOS vs yield per night (receipts per trip / ALOS), both indexed to the first year
-  const yt = data.socio
-    .filter((r) => r.alos !== null && r.receiptsPerTripRM !== null)
-    .sort((a, b) => a.year - b.year)
-    .map((r) => ({ year: r.year, alos: r.alos as number, yieldPerNightRM: (r.receiptsPerTripRM as number) / (r.alos as number) }));
-  const yieldTrap = yt.length >= 2
-    ? {
-        points: yt.map<YieldTrapPoint>((p) => ({
-          ...p,
-          alosIndex: (p.alos / yt[0].alos) * 100,
-          yieldIndex: (p.yieldPerNightRM / yt[0].yieldPerNightRM) * 100,
-        })),
-        alosChangePct: (yt[yt.length - 1].alos / yt[0].alos - 1) * 100,
-        yieldChangePct: (yt[yt.length - 1].yieldPerNightRM / yt[0].yieldPerNightRM - 1) * 100,
-      }
-    : null;
-
-  // 1B: Decoupling index (RM of receipts per tonne of waste)
+  // Decoupling index (RM of receipts per tonne of waste)
   const dp = data.socio
     .filter((r) => r.decoupling !== null)
     .sort((a, b) => a.year - b.year)
@@ -104,5 +79,7 @@ export function buildAnalysis(wb: XLSX.WorkBook): Analysis {
     };
   }
 
-  return { data, marine, islands, forecast, forecastError, yieldTrap, decoupling };
+  const insights = buildLangkawiInsights(data, historyWb ? readHistory(historyWb) : null);
+
+  return { data, marine, islands, forecast, forecastError, decoupling, ...insights };
 }

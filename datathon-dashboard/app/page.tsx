@@ -14,7 +14,7 @@ import { Map as MapIcon, ShieldCheck, CheckSquare, Square, Palmtree, Waves, User
 // SETTINGS
 // =====================================================================
 
-// The Excel file must sit in your project's  public/  folder
+// The Excel file must sit in your project's `public/` folder
 const EXCEL_PATH = '/data_cleaned.xlsx';
 
 // Island highlighted in blue on the coral chart and used for the "survival" z-score
@@ -37,13 +37,14 @@ const islandAssumptions: Record<IslandKey, { area: number; capBase: number; alos
 // =====================================================================
 
 interface YearlyPoint { year: number; arrivals: number; revenue: number; alos: number; decoupling: number }
-interface MonthlyPoint { label: string; total: number; international: number }
+// ADDED 'year' to interface so we can filter by it
+interface MonthlyPoint { year: number; label: string; total: number; international: number }
 interface CoralPoint { name: string; change: number; fill: string }
 
 interface DashboardData {
   yearly: YearlyPoint[];                       // MASTER + OVERALL TOURISTS
-  monthly: MonthlyPoint[];                     // OVERALL TOURISTS BY MONTH (latest year)
-  monthlyYear: number;
+  monthly: MonthlyPoint[];                     // OVERALL TOURISTS BY MONTH
+  monthlyYear: number;                         // Kept as default starting year
   wealth: { arrivals: number; gdp: number }[]; // OVERALL TOURISTS + GDP
   jobs: { receipts: number; unemp: number }[]; // MASTER + LANGKAWI EMPLOYMENT & LABOUR
   coral: CoralPoint[];                         // CORAL REEF STATUS
@@ -112,21 +113,22 @@ const buildDashboardData = (wb: XLSX.WorkBook): DashboardData => {
     .sort((a, b) => a.year - b.year);
   if (yearly.length < 2) throw new Error('Not enough yearly rows found in the MASTER / OVERALL TOURISTS sheets.');
 
-  // ---- Monthly chart (latest year available) ----
+  // ---- Monthly chart (all years) ----
+  // REMOVED the `.filter()` so we capture every year, but keep `monthlyYear` as our default selector
   const monthlyYear = Math.max(...monthlyRows.map((r) => Number(r.YEAR)));
   const monthly: MonthlyPoint[] = monthlyRows
-    .filter((r) => Number(r.YEAR) === monthlyYear)
     .map((r) => {
       const m = String(r.MONTH).trim().toUpperCase();
       return {
+        year: Number(r.YEAR),
         idx: MONTHS.indexOf(m),
         label: m.charAt(0) + m.slice(1).toLowerCase(),
         total: Number(r.TOTAL),
         international: Number(r.INTERNATIONAL),
       };
     })
-    .sort((a, b) => a.idx - b.idx)
-    .map((r) => ({ label: r.label, total: r.total, international: r.international }));
+    .sort((a, b) => a.year - b.year || a.idx - b.idx)
+    .map((r) => ({ year: r.year, label: r.label, total: r.total, international: r.international }));
 
   // ---- Unemployment (Langkawi) ----
   const unempByYear = new Map<number, number>();
@@ -301,7 +303,9 @@ const WaveBackdrop = () => (
 interface ChartPoint { label: string | number; arrivals: number; second: number }
 
 const LangkawiBlueprint = ({ data }: { data: DashboardData }) => {
-  const [viewMonthly, setViewMonthly] = useState(false);
+  // REPLACED boolean toggle with a view mode and year state
+  const [viewMode, setViewMode] = useState<'yearly' | 'monthly'>('yearly');
+  const [selectedYear, setSelectedYear] = useState<number>(data.monthlyYear);
 
   const { yearly, unemp } = data;
   const first = yearly[0];
@@ -309,6 +313,9 @@ const LangkawiBlueprint = ({ data }: { data: DashboardData }) => {
 
   const ringOf = (from: number, to: number) => Math.abs(Math.round(((to - from) / from) * 100));
   const dir = (from: number, to: number) => (to >= from ? 'Up' : 'Down');
+
+  // Extracts all unique years from the monthly dataset
+  const availableYears = Array.from(new Set(data.monthly.map(m => m.year))).sort((a, b) => b - a);
 
   const kpis = [
     {
@@ -345,8 +352,9 @@ const LangkawiBlueprint = ({ data }: { data: DashboardData }) => {
     },
   ];
 
-  const chartData: ChartPoint[] = viewMonthly
-    ? data.monthly.map((m) => ({ label: m.label, arrivals: m.total, second: m.international }))
+  // UPDATED: Dynamically filters the chart data based on selected year
+  const chartData: ChartPoint[] = viewMode === 'monthly'
+    ? data.monthly.filter(m => m.year === selectedYear).map((m) => ({ label: m.label, arrivals: m.total, second: m.international }))
     : yearly.map((y) => ({ label: y.year, arrivals: y.arrivals, second: y.revenue }));
 
   const highlightShort = HIGHLIGHT_ISLAND.replace(/^Pulau\s+/i, '');
@@ -379,14 +387,27 @@ const LangkawiBlueprint = ({ data }: { data: DashboardData }) => {
           <div className="relative">
             <CardHeader
               title="The policy catalyst (SDG 9)"
-              sub={viewMonthly ? `Monthly arrivals, ${data.monthlyYear}` : 'Tourist arrivals and tourism receipts'}
+              sub={viewMode === 'monthly' ? `Monthly arrivals, ${selectedYear}` : 'Tourist arrivals and tourism receipts'}
               right={
-                <button
-                  onClick={() => setViewMonthly(!viewMonthly)}
-                  className="px-4 py-1.5 bg-gradient-to-r from-sky-500 to-cyan-500 text-white font-bold text-xs rounded-full shadow-md shadow-sky-500/25 hover:from-sky-600 hover:to-cyan-600 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                <select
+                  value={viewMode === 'yearly' ? 'yearly' : String(selectedYear)}
+                  onChange={(e) => {
+                    if (e.target.value === 'yearly') {
+                      setViewMode('yearly');
+                    } else {
+                      setViewMode('monthly');
+                      setSelectedYear(Number(e.target.value));
+                    }
+                  }}
+                  className="px-4 py-1.5 pr-8 bg-sky-500 text-white font-bold text-xs rounded-full shadow-md shadow-sky-500/25 hover:bg-sky-600 transition outline-none cursor-pointer"
                 >
-                  View: {viewMonthly ? 'Monthly' : 'Yearly'}
-                </button>
+                  <option value="yearly" className="bg-white text-sky-900">Yearly Overview</option>
+                  {availableYears.map(year => (
+                    <option key={year} value={String(year)} className="bg-white text-sky-900">
+                      Monthly - {year}
+                    </option>
+                  ))}
+                </select>
               }
             />
             <div className="h-80">
@@ -403,18 +424,18 @@ const LangkawiBlueprint = ({ data }: { data: DashboardData }) => {
                   <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#0369a1', fontSize: 12 }} dy={10} />
                   <YAxis
                     yAxisId="left"
-                    tickFormatter={(val) => (viewMonthly ? `${Math.round(val / 1000)}K` : `${val}M`)}
+                    tickFormatter={(val: any) => (viewMode === 'monthly' ? `${Math.round(val / 1000)}K` : `${val}M`)}
                     axisLine={false} tickLine={false} tick={{ fill: '#0284c7', fontSize: 12 }}
                   />
                   <YAxis
                     yAxisId="right" orientation="right"
-                    tickFormatter={(val) => (viewMonthly ? `${Math.round(val / 1000)}K` : `RM ${+(val / 1000).toFixed(1)}B`)}
+                    tickFormatter={(val: any) => (viewMode === 'monthly' ? `${Math.round(val / 1000)}K` : `RM ${+(val / 1000).toFixed(1)}B`)}
                     axisLine={false} tickLine={false} tick={{ fill: '#d97706', fontSize: 12 }}
                   />
                   <Tooltip cursor={{ stroke: '#7dd3fc', strokeWidth: 1 }} contentStyle={tooltipStyle} />
                   <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
 
-                  {!viewMonthly && (
+                  {viewMode === 'yearly' && (
                     <>
                       <ReferenceLine x={2020} stroke="#fb7185" strokeDasharray="4 4" yAxisId="left">
                         <Label value="HELANG" position="insideTopLeft" fill="#e11d48" fontSize={12} fontWeight="bold" />
@@ -430,12 +451,12 @@ const LangkawiBlueprint = ({ data }: { data: DashboardData }) => {
 
                   <Area
                     yAxisId="left" type="monotone" dataKey="arrivals"
-                    name={viewMonthly ? 'Total Arrivals' : 'Tourist Arrivals (millions)'}
+                    name={viewMode === 'monthly' ? 'Total Arrivals' : 'Tourist Arrivals (millions)'}
                     stroke="#0284c7" strokeWidth={3} fill="url(#arrivalsFill)" activeDot={{ r: 6 }}
                   />
                   <Line
-                    yAxisId="right" type={viewMonthly ? 'monotone' : 'stepAfter'} dataKey="second"
-                    name={viewMonthly ? 'International Arrivals' : 'Tourism Receipts (RM mil)'}
+                    yAxisId="right" type={viewMode === 'monthly' ? 'monotone' : 'stepAfter'} dataKey="second"
+                    name={viewMode === 'monthly' ? 'International Arrivals' : 'Tourism Receipts (RM mil)'}
                     stroke="#f59e0b" strokeWidth={3} dot={false}
                   />
                 </ComposedChart>
@@ -487,7 +508,7 @@ const LangkawiBlueprint = ({ data }: { data: DashboardData }) => {
               <BarChart data={data.coral} margin={{ top: 10, right: 0, left: -20, bottom: 0 }} barSize={28}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#bae6fd" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#0369a1', fontSize: 11, fontWeight: 600 }} dy={8} />
-                <YAxis tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} tick={{ fill: '#0369a1', fontSize: 11 }} />
+                <YAxis tickFormatter={(val: any) => `${val}%`} axisLine={false} tickLine={false} tick={{ fill: '#0369a1', fontSize: 11 }} />
                 <Tooltip cursor={{ fill: 'rgba(186,230,253,0.35)' }} contentStyle={tooltipStyle} />
                 <ReferenceLine y={0} stroke="#7dd3fc" strokeWidth={2} />
                 <Bar dataKey="change" radius={[8, 8, 8, 8]}>
@@ -643,7 +664,7 @@ const MLPolicySimulator = ({ data }: { data: DashboardData }) => {
               <LineChart data={simData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#bae6fd" />
                 <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fill: '#0369a1', fontSize: 11 }} dy={10} />
-                <YAxis tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} tick={{ fill: '#0369a1', fontSize: 11 }} />
+                <YAxis tickFormatter={(val: any) => `${val}%`} axisLine={false} tickLine={false} tick={{ fill: '#0369a1', fontSize: 11 }} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Line
                   type="monotone" dataKey="health"
@@ -767,7 +788,7 @@ export default function DashboardApp() {
       <main className="max-w-7xl mx-auto p-6 lg:p-8">
         {error ? (
           <GlassCard className="p-8">
-            <h2 className="font-bold text-lg text-rose-600 mb-2">Couldn&apos;t load the Excel data</h2>
+            <h2 className="font-bold text-lg text-rose-600 mb-2">Couldn't load the Excel data</h2>
             <p className="text-sm text-sky-900">{error}</p>
           </GlassCard>
         ) : !data ? (

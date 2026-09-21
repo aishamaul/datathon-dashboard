@@ -129,16 +129,59 @@
   }
 }
 
-/* Dashboard backdrop: the original sky/cyan/amber wash (light) and its deep-sea counterpart (dark). */
+/* Dashboard backdrop: sky/cyan/amber wash with soft colour glows (light) and a deep-sea counterpart (dark). */
 .senyih-bg {
+  background-color: #e0f2fe;
   background-image:
-    repeating-linear-gradient(90deg, rgba(14, 165, 233, 0.06) 0 1px, transparent 1px 96px),
-    linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 40%, #ecfeff 72%, #fef3c7 125%);
+    radial-gradient(60rem 36rem at 8% -4%, rgba(56, 189, 248, 0.28), transparent 60%),
+    radial-gradient(48rem 30rem at 100% 8%, rgba(45, 212, 191, 0.16), transparent 60%),
+    radial-gradient(56rem 34rem at 92% 100%, rgba(251, 191, 36, 0.2), transparent 60%),
+    repeating-linear-gradient(90deg, rgba(14, 165, 233, 0.05) 0 1px, transparent 1px 96px),
+    linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 45%, #ecfeff 75%, #fef9e7 120%);
 }
 .dark .senyih-bg {
+  background-color: #020617;
   background-image:
-    repeating-linear-gradient(90deg, rgba(56, 189, 248, 0.05) 0 1px, transparent 1px 96px),
-    linear-gradient(135deg, #020617 0%, #082f49 45%, #0c4a6e 100%);
+    radial-gradient(60rem 36rem at 8% -4%, rgba(14, 165, 233, 0.22), transparent 60%),
+    radial-gradient(48rem 30rem at 100% 8%, rgba(20, 184, 166, 0.12), transparent 60%),
+    radial-gradient(56rem 34rem at 92% 100%, rgba(245, 158, 11, 0.09), transparent 60%),
+    repeating-linear-gradient(90deg, rgba(56, 189, 248, 0.04) 0 1px, transparent 1px 96px),
+    linear-gradient(135deg, #020617 0%, #082f49 50%, #0b3b5c 100%);
+}
+
+/* Cards: hairline highlight + layered depth, gentle rise-in on mount, deeper shadow on hover. */
+.senyih-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(14, 116, 144, 0.06),
+    0 12px 36px -14px rgba(14, 116, 144, 0.28);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  animation: senyih-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.senyih-card:hover {
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 1px 2px rgba(14, 116, 144, 0.08),
+    0 18px 48px -14px rgba(14, 116, 144, 0.38);
+}
+.dark .senyih-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 14px 40px -14px rgba(0, 0, 0, 0.7);
+}
+.dark .senyih-card:hover {
+  border-color: rgba(56, 189, 248, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 18px 48px -14px rgba(0, 0, 0, 0.8);
+}
+.senyih-fade {
+  animation: senyih-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.senyih-stagger > :nth-child(2) { animation-delay: 0.06s; }
+.senyih-stagger > :nth-child(3) { animation-delay: 0.12s; }
+.senyih-stagger > :nth-child(4) { animation-delay: 0.18s; }
+@keyframes senyih-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .senyih-card, .senyih-fade { animation: none; }
 }
 /* Management-level slider: filled track + round thumb in the dashboard's sky/cyan palette. */
 .senyih-range {

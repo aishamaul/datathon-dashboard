@@ -6,26 +6,35 @@ import { useChartColors } from './chart-theme';
 import type { DnaWeights } from '@/lib/engine/pareto';
 import { pct1 } from '@/lib/format';
 
-// Shared building blocks. Light-mode classes are the dashboard's original tokens;
+// Shared building blocks. Card depth, hover and entrance animation live in globals.css (.senyih-card);
 // `dark:` variants add the dark theme.
 
 export const GlassCard = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
   <div
-    className={`rounded-2xl border border-sky-200/80 bg-white/60 backdrop-blur-xl shadow-[0_8px_30px_rgba(14,116,144,0.08)] dark:border-sky-800/50 dark:bg-slate-900/55 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${className}`}
+    className={`senyih-card rounded-3xl border border-sky-200/70 bg-white/65 backdrop-blur-xl dark:border-sky-400/15 dark:bg-slate-900/55 ${className}`}
   >
     {children}
   </div>
 );
 
-export const CardHeader = ({ title, sub, right }: { title: string; sub?: string; right?: ReactNode }) => (
-  <div className="flex items-start justify-between gap-3 mb-4">
-    <div>
-      <h2 className="text-sm font-bold text-sky-950 dark:text-sky-50 leading-tight">{title}</h2>
-      {sub && <p className="text-xs text-sky-700/70 dark:text-sky-300/70 mt-0.5">{sub}</p>}
+/** "Chart 1A · The yield trap" renders as a small eyebrow above the title. */
+export const CardHeader = ({ title, sub, right }: { title: string; sub?: string; right?: ReactNode }) => {
+  const cut = title.indexOf(' · ');
+  const eyebrow = cut > -1 ? title.slice(0, cut) : null;
+  const main = cut > -1 ? title.slice(cut + 3) : title;
+  return (
+    <div className="flex items-start justify-between gap-3 mb-4">
+      <div className="min-w-0">
+        {eyebrow && (
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-600 dark:text-cyan-300">{eyebrow}</p>
+        )}
+        <h3 className="text-[15px] font-bold tracking-tight text-sky-950 dark:text-sky-50 leading-tight">{main}</h3>
+        {sub && <p className="text-xs leading-relaxed text-sky-700/75 dark:text-sky-300/70 mt-1">{sub}</p>}
+      </div>
+      {right}
     </div>
-    {right}
-  </div>
-);
+  );
+};
 
 const badgeTones = {
   sky: 'bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:border-sky-500/30',
@@ -36,6 +45,17 @@ const badgeTones = {
 
 export const Badge = ({ children, tone = 'sky' }: { children: ReactNode; tone?: keyof typeof badgeTones }) => (
   <span className={`shrink-0 px-3 py-1 text-[11px] font-bold rounded-full border ${badgeTones[tone]}`}>{children}</span>
+);
+
+/** Badge with a pulsing dot, for the live simulator. */
+export const LiveBadge = ({ children }: { children: ReactNode }) => (
+  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-[11px] font-bold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-200">
+    <span className="relative flex h-2 w-2" aria-hidden="true">
+      <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 motion-safe:animate-ping" />
+      <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+    </span>
+    {children}
+  </span>
 );
 
 /** Donut ring, like the KPI cards in the reference. */
@@ -58,6 +78,7 @@ export const Ring = ({ value, id }: { value: number; id: string }) => {
         stroke={`url(#ring-${id})`} strokeWidth="8" strokeLinecap="round"
         strokeDasharray={`${(shown / 100) * circ} ${circ}`}
         transform="rotate(-90 38 38)"
+        style={{ filter: 'drop-shadow(0 2px 4px rgba(14,165,233,0.35))' }}
       />
       <text x="38" y="43" textAnchor="middle" fontSize="14" fontWeight="800" fill={c.ringText}>{shown}%</text>
     </svg>
@@ -80,15 +101,18 @@ export const WaveBackdrop = () => {
 
 /** Banner tile: ring + headline value + note. */
 export const StatTile = ({
-  id, title, sub, value, note, ring,
-}: { id: string; title: string; sub?: string; value: string; note: string; ring: number }) => (
+  id, title, sub, value, unit, note, ring,
+}: { id: string; title: string; sub?: string; value: string; unit?: string; note: string; ring: number }) => (
   <GlassCard className="p-5">
     <CardHeader title={title} sub={sub} />
     <div className="flex items-center gap-4">
       <Ring value={ring} id={id} />
-      <div>
-        <p className="text-2xl font-black tracking-tight text-sky-950 dark:text-sky-50 leading-none">{value}</p>
-        <p className="text-xs text-sky-700/70 dark:text-sky-300/70 mt-2">{note}</p>
+      <div className="min-w-0">
+        <p className="flex flex-wrap items-baseline gap-x-1.5 leading-none">
+          <span className="text-3xl font-black tracking-tight tabular-nums text-sky-950 dark:text-sky-50">{value}</span>
+          {unit && <span className="text-sm font-bold text-sky-600 dark:text-sky-300">{unit}</span>}
+        </p>
+        <p className="text-xs leading-relaxed text-sky-700/75 dark:text-sky-300/70 mt-2">{note}</p>
       </div>
     </div>
   </GlassCard>
@@ -103,8 +127,8 @@ export const DnaTile = ({ weights, island }: { weights: DnaWeights; island: stri
   ];
   return (
     <GlassCard className="p-5">
-      <CardHeader title="Island DNA" sub={`${island} · hotel-room mix (L1-normalised)`} />
-      <div className="flex h-3 w-full overflow-hidden rounded-full bg-sky-100 dark:bg-sky-950" role="img"
+      <CardHeader title="Island DNA" sub={`${island} · hotel-room mix`} />
+      <div className="flex h-3 w-full overflow-hidden rounded-full bg-sky-100 shadow-inner dark:bg-sky-950" role="img"
         aria-label={parts.map((p) => `${p.key} ${pct1(p.v)}`).join(', ')}>
         {parts.map((p) => (
           <div key={p.key} className={p.bar} style={{ width: `${p.v * 100}%` }} />
@@ -117,7 +141,7 @@ export const DnaTile = ({ weights, island }: { weights: DnaWeights; island: stri
               <span className={`h-2.5 w-2.5 rounded-full ${p.dot}`} />
               {p.key}
             </span>
-            <span className="font-black text-sky-950 dark:text-sky-50">{pct1(p.v)}</span>
+            <span className="font-black tabular-nums text-sky-950 dark:text-sky-50">{pct1(p.v)}</span>
           </li>
         ))}
       </ul>
@@ -131,7 +155,7 @@ export const Callout = ({ title, children, tone = 'amber' }: { title?: string; c
     sky: 'border-sky-200 bg-sky-50/80 text-sky-950 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100',
   };
   return (
-    <div className={`rounded-2xl border p-4 flex gap-3 items-start backdrop-blur-xl ${tones[tone]}`} role="note">
+    <div className={`senyih-fade rounded-3xl border px-5 py-4 flex gap-3 items-start backdrop-blur-xl ${tones[tone]}`} role="note">
       <Info size={18} className="mt-0.5 shrink-0" />
       <div className="text-sm leading-relaxed">
         {title && <p className="font-black mb-0.5">{title}</p>}

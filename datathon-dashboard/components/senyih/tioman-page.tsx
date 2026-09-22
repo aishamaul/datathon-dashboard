@@ -253,10 +253,6 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
                 <p className="text-[11px] text-sky-700/80 dark:text-sky-300/80">max arrivals at today&apos;s EHI</p>
               </div>
             </div>
-            <p className="mt-3 text-[11px] text-sky-700/70 dark:text-sky-300/70">
-              Arrival headroom is an addition to ml8.py: the largest simulated volume whose EHI is at least the current-management
-              EHI ({pct1(current.ehi)}). The knee cap itself is set by the waste and eco pillars, so it does not move with marine health.
-            </p>
           </GlassCard>
         </div>
       </div>

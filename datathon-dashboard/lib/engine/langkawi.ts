@@ -199,6 +199,27 @@ function buildEconomy(data: WorkbookData, history: HistoryData | null): EconomyR
 }
 
 // ---------------------------------------------------------------------------
+// Economic yield: tourism receipts per visitor-trip, by year
+// ---------------------------------------------------------------------------
+
+export interface EconomicYieldPoint {
+  year: number;
+  /** Tourism receipts per visitor-trip, RM. */
+  receiptsPerTripRM: number;
+}
+
+function buildEconomicYield(data: WorkbookData): EconomicYieldPoint[] {
+  return data.socio
+    .filter((r) => r.receiptsM !== null && r.visitorsK !== null && r.visitorsK > 0)
+    .map<EconomicYieldPoint>((r) => ({
+      year: r.year,
+      // receiptsM is RM million, visitorsK is thousands of visitors: (RM_mil * 1000) / visitors_k = RM per trip.
+      receiptsPerTripRM: ((r.receiptsM as number) * 1000) / (r.visitorsK as number),
+    }))
+    .sort((a, b) => a.year - b.year);
+}
+
+// ---------------------------------------------------------------------------
 // Policy catalyst: length of stay around the LUGGp Blueprint
 // ---------------------------------------------------------------------------
 
@@ -300,6 +321,7 @@ function buildCoralChange(data: WorkbookData): CoralChangeResult | null {
 export interface LangkawiInsights {
   arrivals: ArrivalsData;
   economy: EconomyResult;
+  economicYield: EconomicYieldPoint[];
   catalyst: CatalystResult | null;
   coralChange: CoralChangeResult | null;
 }
@@ -308,6 +330,7 @@ export function buildLangkawiInsights(data: WorkbookData, history: HistoryData |
   return {
     arrivals: buildArrivals(data),
     economy: buildEconomy(data, history),
+    economicYield: buildEconomicYield(data),
     catalyst: buildCatalyst(data),
     coralChange: buildCoralChange(data),
   };

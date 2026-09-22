@@ -59,6 +59,8 @@ export interface SocioRow {
   services: number | null;
   /** Unemployment rate, % (optional column). */
   unemploymentPct: number | null;
+  /** Tourism receipts per trip, RM (Avg_Receipts_Per_Trip_RM column). */
+  receiptsPerTripRM: number | null;
 }
 
 export interface MonthlyRow {
@@ -140,6 +142,7 @@ export function readWorkbook(wb: XLSX.WorkBook): WorkbookData {
     decoupling: toNum(r['Decoupling_Index_RM_per_Ton']),
     services: toNum(r['Services']),
     unemploymentPct: toNum(r['Unemployment_Rate_pct']),
+    receiptsPerTripRM: toNum(r['Avg_Receipts_Per_Trip_RM']),
   }));
 
   // ml8.py: the first sheet whose name contains "month" holds the monthly arrivals.

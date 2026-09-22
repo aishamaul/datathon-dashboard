@@ -174,12 +174,8 @@ export interface EconomicYieldPoint {
 
 function buildEconomicYield(data: WorkbookData): EconomicYieldPoint[] {
   return data.socio
-    .filter((r) => r.receiptsM !== null && r.visitorsK !== null && r.visitorsK > 0)
-    .map<EconomicYieldPoint>((r) => ({
-      year: r.year,
-      // receiptsM is RM million, visitorsK is thousands of visitors: (RM_mil * 1000) / visitors_k = RM per trip.
-      receiptsPerTripRM: ((r.receiptsM as number) * 1000) / (r.visitorsK as number),
-    }))
+    .filter((r) => r.receiptsPerTripRM !== null)
+    .map<EconomicYieldPoint>((r) => ({ year: r.year, receiptsPerTripRM: r.receiptsPerTripRM as number }))
     .sort((a, b) => a.year - b.year);
 }
 

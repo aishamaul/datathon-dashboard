@@ -4,7 +4,7 @@ import { ISLAND_CONFIG, ISLAND_KEYS, readWorkbook, type IslandKey, type Workbook
 import { trainPooledMarineModel, type MarineModel } from './marine';
 import { prepareSearch, runAllScenarios, type ParetoSetup, type ScenarioKey, type ScenarioResult } from './pareto';
 import { buildForecast, type ForecastResult } from './forecast';
-import { buildLangkawiInsights, readHistory, type LangkawiInsights } from './langkawi';
+import { buildLangkawiInsights, type LangkawiInsights } from './langkawi';
 import type * as XLSX from 'xlsx';
 
 export interface IslandAnalysis {
@@ -34,11 +34,7 @@ export interface Analysis extends LangkawiInsights {
   } | null;
 }
 
-/**
- * `historyWb` is the optional GDP / employment history workbook (the notebook's data_cleaned.xlsx);
- * without it the two revenue regressions fall back to whatever years data_new.xlsx itself provides.
- */
-export function buildAnalysis(wb: XLSX.WorkBook, historyWb: XLSX.WorkBook | null = null): Analysis {
+export function buildAnalysis(wb: XLSX.WorkBook): Analysis {
   const data = readWorkbook(wb);
   const marine = trainPooledMarineModel(data.coral);
 
@@ -79,7 +75,7 @@ export function buildAnalysis(wb: XLSX.WorkBook, historyWb: XLSX.WorkBook | null
     };
   }
 
-  const insights = buildLangkawiInsights(data, historyWb ? readHistory(historyWb) : null);
+  const insights = buildLangkawiInsights(data);
 
   return { data, marine, islands, forecast, forecastError, decoupling, ...insights };
 }

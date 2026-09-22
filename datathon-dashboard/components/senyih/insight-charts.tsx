@@ -7,7 +7,8 @@ import {
 } from 'recharts';
 import {
   POLICY_MILESTONES,
-  type ArrivalsData, type CatalystResult, type CoralChangeResult, type RegressionChart, type RegressionPoint,
+  type ArrivalsData, type CatalystResult, type CoralChangeResult, type EconomicYieldPoint,
+  type RegressionChart, type RegressionPoint,
 } from '@/lib/engine/langkawi';
 import { fmt2, fmtInt, signedPct } from '@/lib/format';
 import { useChartColors, useNarrow } from './chart-theme';
@@ -257,6 +258,67 @@ export function RegressionCard({
         </>
       ) : (
         <p className="text-sm font-semibold text-rose-600 dark:text-rose-300">{missing}</p>
+      )}
+    </GlassCard>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Economic yield: tourism receipts per visitor-trip, by year
+// ---------------------------------------------------------------------------
+
+export function EconomicYieldCard({ yieldData }: { yieldData: EconomicYieldPoint[] }) {
+  const c = useChartColors();
+  const first = yieldData[0];
+  const last = yieldData[yieldData.length - 1];
+  const changePct = yieldData.length >= 2 ? (last.receiptsPerTripRM / first.receiptsPerTripRM - 1) * 100 : 0;
+  const axis = useMemo(() => {
+    const values = yieldData.map((p) => p.receiptsPerTripRM);
+    return niceAxis(Math.min(...values) * 0.9, Math.max(...values) * 1.05, 5);
+  }, [yieldData]);
+
+  return (
+    <GlassCard className="p-6">
+      <CardHeader
+        title="Chart 1B · Economic yield"
+        sub={yieldData.length ? `Tourism receipts per visitor-trip, ${first.year}–${last.year}` : 'Tourism receipts per visitor-trip'}
+        right={yieldData.length >= 2 ? <Badge tone={changePct >= 0 ? 'teal' : 'rose'}>{signedPct(changePct)} since {first.year}</Badge> : undefined}
+      />
+      {yieldData.length ? (
+        <>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={yieldData} margin={{ top: 10, right: 16, left: 4, bottom: 22 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={c.grid} />
+                <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }} dy={8}>
+                  <Label value="Year" position="insideBottom" offset={-14} fill={c.tickX} fontSize={12} />
+                </XAxis>
+                <YAxis
+                  width={64} domain={axis.domain} ticks={axis.ticks} axisLine={false} tickLine={false}
+                  tickFormatter={(v: number) => fmtInt(v)} tick={{ fill: c.tickLeft, fontSize: 12 }}
+                >
+                  <Label value="Receipts per trip (RM)" angle={-90} position="insideLeft" offset={10} fill={c.tickLeft} fontSize={12} style={{ textAnchor: 'middle' }} />
+                </YAxis>
+                <Tooltip
+                  {...c.tooltip}
+                  cursor={{ stroke: c.refLine, strokeWidth: 1 }}
+                  formatter={(v) => (typeof v === 'number' ? `RM ${fmtInt(v)}` : String(v))}
+                />
+                <Line
+                  type="monotone" dataKey="receiptsPerTripRM" name="Receipts per trip"
+                  stroke={c.teal} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="mt-3 text-xs text-sky-700/80 dark:text-sky-300/80">
+            Tourism receipts divided by visitor arrivals for the same year. Rising values mean each trip is worth more to the island&apos;s economy.
+          </p>
+        </>
+      ) : (
+        <p className="text-sm font-semibold text-rose-600 dark:text-rose-300">
+          Needs Tourism_Receipts_RM_mil and Domestic_Visitors_k for at least one year in Langkawi_Socioeconomic_Master.
+        </p>
       )}
     </GlassCard>
   );

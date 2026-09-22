@@ -9,7 +9,7 @@ import type { Analysis } from '@/lib/engine/analysis';
 import { SEARCH_BOUNDS, N_SEARCH } from '@/lib/engine/pareto';
 import { fmt1, fmt2, fmtInt, pct1, signedPct } from '@/lib/format';
 import { useChartColors, useNarrow } from './chart-theme';
-import { ArrivalsTrendCard, CatalystCard, CoralChangeCard, RegressionCard } from './insight-charts';
+import { ArrivalsTrendCard, CatalystCard, CoralChangeCard, EconomicYieldCard, RegressionCard } from './insight-charts';
 import { Badge, Callout, CardHeader, DnaTile, GlassCard, StatTile, WaveBackdrop } from './ui';
 
 // PAGE 1: THE MACRO ANCHOR (LANGKAWI). Every number comes from the engine's Current-disturbance scenario.
@@ -19,7 +19,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
   const narrow = useNarrow();
   const { setup, scenarios } = analysis.islands.Langkawi;
   const s = scenarios.current;
-  const { forecast, decoupling, economy, catalyst, coralChange, arrivals } = analysis;
+  const { forecast, decoupling, economy, economicYield, catalyst, coralChange, arrivals } = analysis;
   const legendText = (value: string) => <span style={{ color: c.tickX }}>{value}</span>;
 
   const atAlosCeiling = Math.abs(s.alos / setup.currentAlos - SEARCH_BOUNDS.alosHi) < 0.005;
@@ -75,20 +75,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
       {/* The economic reality: what tourism revenue buys the island */}
       <div className="senyih-stagger grid grid-cols-1 lg:grid-cols-2 gap-5">
         <RegressionCard
-          title="Chart 1A · Economic engine"
-          result={economy.gdp}
-          tone="sky"
-          badgeTone="sky"
-          xLabel="Tourism receipts (RM million)"
-          yLabel="Services GDP (RM million)"
-          yName="Services GDP"
-          yTick={(v) => fmtInt(v)}
-          yTip={(v) => `RM ${fmtInt(v)}M`}
-          note={`Each dot is one year. The line is the ordinary-least-squares fit of services GDP on tourism receipts, and the shaded band is its 95% confidence interval.${historyNote}`}
-          missing="Needs services GDP for at least three years that also have tourism receipts (the GDP sheet in data_cleaned.xlsx)."
-        />
-        <RegressionCard
-          title="Chart 1B · Grassroots impact"
+          title="Chart 1A · Grassroots impact"
           result={economy.unemployment}
           tone="rose"
           badgeTone="amber"
@@ -100,6 +87,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
           note={`Each dot is one year. The line is the ordinary-least-squares fit of the unemployment rate on tourism receipts, and the shaded band is its 95% confidence interval.${historyNote}`}
           missing="Needs unemployment rates for at least three years that also have tourism receipts (the employment sheet in data_cleaned.xlsx)."
         />
+        <EconomicYieldCard yieldData={economicYield} />
       </div>
 
       {/* Policy: did the interventions extend stays? */}

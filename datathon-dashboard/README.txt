@@ -1,13 +1,6 @@
 DOSM DATATHON 2026 SUBMISSION
 TEAM SENYIH — ISLAND TOURISM POLICY ENGINE DASHBOARD
 
-Welcome, and thank you for reviewing our submission. This package contains
-the interactive dashboard built by Team Senyih for the DOSM Datathon 2026.
-The sections below follow the numbering required by the submission
-guidelines and describe exactly how to install, run, and evaluate the
-dashboard.
-
-
 5.1 SOFTWARE NAME AND VERSION USED
 
 Runtime and framework:
@@ -113,7 +106,3 @@ Navigation instructions:
   - All figures shown are computed directly from the bundled workbook
     at runtime; no results are hard-coded.
 
-Thank you again for your time and consideration.
-
-Team Senyih
-DOSM Datathon 2026

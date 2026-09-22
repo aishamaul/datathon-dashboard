@@ -2,16 +2,12 @@
 // arrivals trend, revenue regressions, the policy-catalyst t-test and coral net change.
 // Every figure is computed from the workbooks at runtime.
 
-import * as XLSX from 'xlsx';
-import { ISLAND_CONFIG, toNum, type WorkbookData } from './workbook';
+import { ISLAND_CONFIG, type WorkbookData } from './workbook';
 import { maxOf, mean, minOf, olsInference, stdPop, welchTTest, type WelchResult } from './stats';
 
 // ---------------------------------------------------------------------------
 // Inputs that live in the notebook rather than in a workbook
 // ---------------------------------------------------------------------------
-
-/** Extra workbook (the notebook's data_cleaned.xlsx) holding the GDP and employment history. */
-export const HISTORY_SHEETS = { gdp: 'GDP', employment: 'LANGKAWI EMPLOYMENT & LABOUR' } as const;
 
 /**
  * The notebook's `historical_receipts` patch: tourism receipts (RM million) for the years before the
@@ -35,34 +31,6 @@ export const POLICY_MILESTONES = [
 export const BLUEPRINT_YEAR = 2024;
 
 export const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-// ---------------------------------------------------------------------------
-// History workbook
-// ---------------------------------------------------------------------------
-
-export interface HistoryData {
-  services: Map<number, number>;
-  unemployment: Map<number, number>;
-}
-
-/** Reads the optional GDP and employment sheets; a missing sheet simply yields no rows. */
-export function readHistory(wb: XLSX.WorkBook): HistoryData {
-  const pick = (sheet: string, col: string) => {
-    const out = new Map<number, number>();
-    const ws = wb.Sheets[sheet];
-    if (!ws) return out;
-    for (const r of XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null })) {
-      const year = toNum(r['Year']);
-      const value = toNum(r[col]);
-      if (year !== null && value !== null) out.set(year, value);
-    }
-    return out;
-  };
-  return {
-    services: pick(HISTORY_SHEETS.gdp, 'Services'),
-    unemployment: pick(HISTORY_SHEETS.employment, 'Unemployment_Rate_pct'),
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Arrivals trend (yearly overview and monthly breakdown)
@@ -150,8 +118,6 @@ export interface EconomyResult {
   gdp: RegressionChart | null;
   /** Tourism receipts vs unemployment rate. */
   unemployment: RegressionChart | null;
-  /** False when the GDP/employment history workbook could not be loaded. */
-  historyLoaded: boolean;
 }
 
 const BAND_STEPS = 60;
@@ -178,15 +144,14 @@ function buildRegression(receipts: Map<number, number>, series: Map<number, numb
   };
 }
 
-function buildEconomy(data: WorkbookData, history: HistoryData | null): EconomyResult {
+function buildEconomy(data: WorkbookData): EconomyResult {
   const receipts = new Map<number, number>(
     Object.entries(NOTEBOOK_HISTORICAL_RECEIPTS_RM_MIL).map(([year, value]) => [Number(year), value]),
   );
   for (const r of data.socio) if (r.receiptsM !== null) receipts.set(r.year, r.receiptsM);
 
-  // History workbook first, then any value present in the main workbook wins.
-  const services = new Map<number, number>(history?.services ?? []);
-  const unemployment = new Map<number, number>(history?.unemployment ?? []);
+  const services = new Map<number, number>();
+  const unemployment = new Map<number, number>();
   for (const r of data.socio) {
     if (r.services !== null) services.set(r.year, r.services);
     if (r.unemploymentPct !== null) unemployment.set(r.year, r.unemploymentPct);
@@ -194,7 +159,6 @@ function buildEconomy(data: WorkbookData, history: HistoryData | null): EconomyR
   return {
     gdp: buildRegression(receipts, services),
     unemployment: buildRegression(receipts, unemployment),
-    historyLoaded: history !== null,
   };
 }
 
@@ -326,10 +290,10 @@ export interface LangkawiInsights {
   coralChange: CoralChangeResult | null;
 }
 
-export function buildLangkawiInsights(data: WorkbookData, history: HistoryData | null): LangkawiInsights {
+export function buildLangkawiInsights(data: WorkbookData): LangkawiInsights {
   return {
     arrivals: buildArrivals(data),
-    economy: buildEconomy(data, history),
+    economy: buildEconomy(data),
     economicYield: buildEconomicYield(data),
     catalyst: buildCatalyst(data),
     coralChange: buildCoralChange(data),

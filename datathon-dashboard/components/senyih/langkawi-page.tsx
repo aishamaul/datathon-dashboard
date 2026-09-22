@@ -40,10 +40,6 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
     band: [q.lowerK, q.upperK] as [number, number],
   }));
 
-  const historyNote = economy.historyLoaded
-    ? ''
-    : ' Only the years found in data_new.xlsx were used because data_cleaned.xlsx could not be loaded.';
-
   return (
     <div className="space-y-5 text-sky-950 dark:text-sky-50">
       {/* Top banner: DNA & limits */}
@@ -84,8 +80,8 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
           yName="Unemployment rate"
           yTick={(v) => `${+v.toFixed(2)}%`}
           yTip={(v) => `${fmt1(v)}%`}
-          note={`Each dot is one year. The line is the ordinary-least-squares fit of the unemployment rate on tourism receipts, and the shaded band is its 95% confidence interval.${historyNote}`}
-          missing="Needs unemployment rates for at least three years that also have tourism receipts (the employment sheet in data_cleaned.xlsx)."
+          note="Each dot is one year. The line is the ordinary-least-squares fit of the unemployment rate on tourism receipts, and the shaded band is its 95% confidence interval."
+          missing="Needs unemployment rates for at least three years that also have tourism receipts (the Langkawi_Socioeconomic_Master sheet in data_new.xlsx)."
         />
         <EconomicYieldCard yieldData={economicYield} />
       </div>

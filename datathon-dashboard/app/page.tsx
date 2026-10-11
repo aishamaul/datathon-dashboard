@@ -9,6 +9,7 @@ import { fmtInt, pct1 } from '@/lib/format';
 import { GlassCard } from '@/components/senyih/ui';
 import { LangkawiPage } from '@/components/senyih/langkawi-page';
 import { TiomanPage } from '@/components/senyih/tioman-page';
+import { TransferabilityLab } from '@/components/senyih/transferability-lab';
 import { ThemeToggle } from '@/components/senyih/theme-toggle';
 
 // =====================================================================
@@ -18,11 +19,12 @@ import { ThemeToggle } from '@/components/senyih/theme-toggle';
 /** The workbook every number on this dashboard is computed from (served from /public). */
 const EXCEL_PATH = '/data_new.xlsx';
 
-type PageId = 'macro' | 'micro';
+type PageId = 'macro' | 'micro' | 'transferability';
 
 const pills: { id: PageId; label: string; short: string }[] = [
   { id: 'macro', label: 'Macro Anchor · Langkawi', short: 'Langkawi' },
   { id: 'micro', label: 'Micro Stress-Test · Tioman', short: 'Tioman' },
+  { id: 'transferability', label: 'Transferability Lab', short: 'DNA Lab' },
 ];
 
 // =====================================================================
@@ -159,8 +161,10 @@ export default function DashboardApp() {
           <LoadingState />
         ) : activePage === 'macro' ? (
           <LangkawiPage analysis={analysis} />
-        ) : (
+        ) : activePage === 'micro' ? (
           <TiomanPage analysis={analysis} />
+        ) : (
+          <TransferabilityLab />
         )}
       </main>
     </div>

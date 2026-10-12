@@ -56,6 +56,69 @@ function StepHeader({ step, title, sub, badge }: { step: string; title: string; 
 
 function formatPressure(key: keyof typeof pressureLabels) { return pressureLabels[key]; }
 
+// Bar scales are fixed so switching island presets visibly moves the bars.
+const EVIDENCE_SCALE = { arrivals: 600_000, alos: 5, waste: 3_500 } as const;
+
+function EvidenceBar({ share, peakShare, color }: { share: number; peakShare?: number; color: string }) {
+  const clampPct = (value: number) => `${Math.min(100, Math.max(0, value * 100))}%`;
+  return (
+    <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-sky-100 dark:bg-slate-800">
+      {peakShare !== undefined && <div className="absolute inset-y-0 left-0 rounded-full opacity-35 transition-[width] duration-700" style={{ width: clampPct(peakShare), backgroundColor: color }} />}
+      <div className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700" style={{ width: clampPct(share), backgroundColor: color }} />
+    </div>
+  );
+}
+
+function EvidenceTile({ label, value, note, feeds, children }: { label: string; value: string; note: string; feeds: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col rounded-xl border border-sky-200/80 bg-white/70 p-3 dark:border-sky-800/60 dark:bg-slate-950/30">
+      <p className="text-[10px] font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">{label}</p>
+      <p className="mt-1 text-lg font-black leading-none tabular-nums text-sky-950 dark:text-white">{value}</p>
+      {children}
+      <p className="mt-2 text-[11px] leading-snug text-sky-700/80 dark:text-sky-200/75">{note}</p>
+      <p className="mt-auto pt-2 text-[10px] font-black uppercase tracking-wide text-cyan-700 dark:text-cyan-300">Feeds &rarr; {feeds}</p>
+    </div>
+  );
+}
+
+function EvidencePanel({ data, custom }: { data: IslandDemoProfile['supportingData']; custom: boolean }) {
+  const coral = Math.min(1, Math.max(0, data.baselineLiveCoralCover));
+  const ringRadius = 15;
+  const ringLength = 2 * Math.PI * ringRadius;
+  return (
+    <section className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-500/30 dark:bg-amber-500/5" aria-label="Synthetic evidence used by the analysis">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-black">Evidence behind the analysis</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-sky-700/80 dark:text-sky-200/75">The DNA only sets how much each pillar counts. These island figures set the limits the scenarios are tested against.</p>
+        </div>
+        <Badge tone="amber">SYNTHETIC</Badge>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2.5">
+        <EvidenceTile label="Visitor arrivals" value={`${fmtInt(data.historicalPeakArrivals)} peak`} note={`Typical year ${fmtInt(data.historicalAnnualArrivals)} visitors`} feeds="Visitor ceiling">
+          <EvidenceBar share={data.historicalAnnualArrivals / EVIDENCE_SCALE.arrivals} peakShare={data.historicalPeakArrivals / EVIDENCE_SCALE.arrivals} color="#0ea5e9" />
+        </EvidenceTile>
+        <EvidenceTile label="Length of stay" value={`${data.baselineALOS.toFixed(1)} nights`} note="Average stay today" feeds="Stay-length range">
+          <EvidenceBar share={data.baselineALOS / EVIDENCE_SCALE.alos} color="#14b8a6" />
+        </EvidenceTile>
+        <EvidenceTile label="Waste capacity" value={`${fmtInt(data.annualWasteCapacityTonnes)} t/yr`} note="Tonnes the island can process" feeds="Waste pressure">
+          <EvidenceBar share={data.annualWasteCapacityTonnes / EVIDENCE_SCALE.waste} color="#f59e0b" />
+        </EvidenceTile>
+        <EvidenceTile label="Reef condition" value={`${pct1(coral)} coral`} note={`Baseline disturbance ${pct1(data.baselineDisturbance)}`} feeds="Marine health">
+          <div className="mt-2 flex items-center gap-3">
+            <svg viewBox="0 0 36 36" className="h-9 w-9 shrink-0 -rotate-90" aria-hidden="true">
+              <circle cx="18" cy="18" r={ringRadius} fill="none" strokeWidth="5" className="stroke-sky-100 dark:stroke-slate-800" />
+              <circle cx="18" cy="18" r={ringRadius} fill="none" strokeWidth="5" strokeLinecap="round" stroke="#06b6d4" strokeDasharray={`${ringLength * coral} ${ringLength}`} className="transition-[stroke-dasharray] duration-700" />
+            </svg>
+            <div className="min-w-0 flex-1"><EvidenceBar share={data.baselineDisturbance} color="#f43f5e" /></div>
+          </div>
+        </EvidenceTile>
+      </div>
+      <p className="mt-3 text-[11px] leading-relaxed text-amber-900/80 dark:text-amber-100/80">Invented for this demo, not observed statistics{custom ? '; a custom island name uses a generic synthetic profile' : ''}. Real targets need real island data.</p>
+    </section>
+  );
+}
+
 export function TransferabilityLab() {
   const journeyRef = useRef<HTMLDivElement>(null);
   const [overlayActive, setOverlayActive] = useState(false);
@@ -143,10 +206,7 @@ export function TransferabilityLab() {
         <div className="mt-6 flex items-end justify-between gap-3"><div><p className="text-sm font-black">Tourism DNA inputs</p><p className="text-xs text-sky-700/70 dark:text-sky-300/70">Enter each sector&apos;s share as a percentage or ratio, then normalise to 100%.</p></div><span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black tabular-nums ${totalIsHundred ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200' : 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100'}`}>Total {total.toFixed(1)}%</span></div>
         <div className="mt-4 space-y-4">{DNA_META.map((item) => <div key={item.key} className={`rounded-2xl border p-3 ${item.soft}`}><div className="flex items-center justify-between gap-3"><label htmlFor={`dna-${item.key}`} className="flex items-center gap-2 text-sm font-bold"><span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />{item.label}</label><div className="flex items-center gap-1"><input id={`dna-${item.key}`} type="number" min="0" step="0.1" value={values[item.key]} onChange={(event) => updateValue(item.key, event.target.value)} className="w-20 rounded-lg border border-white/80 bg-white/80 px-2 py-1 text-right text-sm font-black outline-none dark:border-slate-700 dark:bg-slate-950/40" /><span className="text-xs font-bold text-sky-600 dark:text-sky-300">%</span></div></div><input type="range" min="0" max="100" step="1" value={Math.min(100, values[item.key])} onChange={(event) => updateValue(item.key, event.target.value)} className="senyih-range mt-3 w-full" aria-label={`${item.label} share`} style={{ '--fill': `${Math.min(100, values[item.key])}%` } as React.CSSProperties} /></div>)}</div>
         {!totalIsHundred && <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"><span>Inputs total {total.toFixed(1)}%. Normalise them into a 100% profile before analysing.</span><button type="button" onClick={normalisePercentages} className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 font-black text-white">Normalise to 100%</button></div>}
-        <details className="mt-5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-          <summary className="cursor-pointer font-black">Illustrative Simulation — Synthetic Data · Review assumptions</summary>
-          <p className="mt-2 leading-relaxed">The demo uses invented island support assumptions, not observed statistics or validated model outputs. Current preset/custom assumptions: peak arrivals {fmtInt(supportingData.historicalPeakArrivals)}, baseline stay {supportingData.baselineALOS.toFixed(1)} nights, waste capacity {fmtInt(supportingData.annualWasteCapacityTonnes)} tonnes/year, coral cover {pct1(supportingData.baselineLiveCoralCover)}, and baseline disturbance {pct1(supportingData.baselineDisturbance)}. Custom island names use a transparent generic synthetic profile.</p>
-        </details>
+        <EvidencePanel data={supportingData} custom={!activePreset} />
         <button type="button" disabled={!isValid || !islandName.trim()} onClick={analyse} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-500 px-4 py-3 text-sm font-black text-white shadow-lg shadow-cyan-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50">Analyse Island with Demo Data <ArrowRight size={17} /></button>
       </GlassCard>
 

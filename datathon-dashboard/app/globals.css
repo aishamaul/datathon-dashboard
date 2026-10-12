@@ -215,3 +215,38 @@
 .senyih-range:focus-visible::-webkit-slider-thumb {
   box-shadow: 0 0 0 4px rgba(125, 211, 252, 0.8);
 }
+@keyframes transfer-scan {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+@keyframes transfer-flow { to { stroke-dashoffset: -32; } }
+@keyframes transfer-spin { to { transform: rotate(360deg); } }
+@keyframes transfer-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@keyframes transfer-scanline { from { transform: translateY(-100%); } to { transform: translateY(100vh); } }
+@keyframes transfer-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes transfer-panel-in { from { opacity: 0; transform: translateY(14px) scale(0.975); } to { opacity: 1; transform: none; } }
+@keyframes transfer-draw { from { stroke-dashoffset: 60; } to { stroke-dashoffset: 0; } }
+@keyframes transfer-trace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes transfer-pop { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+@keyframes transfer-ripple { from { opacity: 0.55; transform: scale(1); } to { opacity: 0; transform: scale(2.1); } }
+@keyframes transfer-line { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+.transfer-flow { stroke-dasharray: 3 13; stroke-linecap: round; animation: transfer-flow 0.9s linear infinite; }
+.transfer-spin { transform-box: fill-box; transform-origin: center; animation: transfer-spin 9s linear infinite; }
+.transfer-spin-rev { transform-box: fill-box; transform-origin: center; animation: transfer-spin 6s linear infinite reverse; }
+.transfer-pulse { transform-box: fill-box; transform-origin: center; animation: transfer-pulse 1.6s ease-in-out infinite; }
+.transfer-ripple { transform-box: fill-box; transform-origin: center; animation: transfer-ripple 1.8s ease-out infinite; }
+.transfer-pop { transform-box: fill-box; transform-origin: center; animation: transfer-pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) backwards; }
+.transfer-trace { stroke-dasharray: 1; animation: transfer-trace 0.9s ease-out forwards; }
+.transfer-scanline { animation: transfer-scanline 2.4s linear infinite; }
+.transfer-overlay { animation: transfer-fade 0.25s ease-out; }
+.transfer-panel { animation: transfer-panel-in 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+.transfer-draw { stroke-dasharray: 60; animation: transfer-draw 0.5s ease-out forwards; }
+.transfer-line { animation: transfer-line 0.3s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe\:animate-\[transfer-scan_1\.1s_ease-in-out_infinite\],
+  .transfer-flow, .transfer-spin, .transfer-spin-rev, .transfer-pulse, .transfer-ripple, .transfer-pop,
+  .transfer-scanline, .transfer-overlay, .transfer-panel, .transfer-line {
+    animation: none;
+  }
+  .transfer-draw, .transfer-trace { animation: none; stroke-dashoffset: 0; }
+}

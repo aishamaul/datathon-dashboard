@@ -11,6 +11,7 @@ import { LangkawiPage } from '@/components/senyih/langkawi-page';
 import { TiomanPage } from '@/components/senyih/tioman-page';
 import { TransferabilityLab } from '@/components/senyih/transferability-lab';
 import { ThemeToggle } from '@/components/senyih/theme-toggle';
+import { MyPulauMark } from '@/components/senyih/brand';
 
 // =====================================================================
 // SETTINGS
@@ -24,7 +25,7 @@ type PageId = 'macro' | 'micro' | 'transferability';
 const pills: { id: PageId; label: string; short: string }[] = [
   { id: 'macro', label: 'Macro Anchor · Langkawi', short: 'Langkawi' },
   { id: 'micro', label: 'Micro Stress-Test · Tioman', short: 'Tioman' },
-  { id: 'transferability', label: 'Transferability Lab', short: 'DNA Lab' },
+  { id: 'transferability', label: 'MY Pulau', short: 'MY Pulau' },
 ];
 
 // =====================================================================
@@ -97,11 +98,10 @@ export default function DashboardApp() {
                 <Palmtree size={22} strokeWidth={2.25} />
               </div>
               <div>
-                <h1 className="text-lg font-black tracking-tight leading-none">
-                  DOSM{' '}
-                  <span className="bg-gradient-to-r from-sky-500 to-cyan-500 bg-clip-text text-transparent">Datathon 2026</span>
+                <h1 className="leading-none">
+                  <MyPulauMark size="md" />
                 </h1>
-                <p className="mt-1 text-[11px] font-medium text-sky-700/70 dark:text-sky-300/70">Island tourism policy engine</p>
+                <p className="mt-1 text-[11px] font-medium text-sky-700/70 dark:text-sky-300/70">DOSM Datathon 2026 · Island tourism policy engine</p>
               </div>
             </div>
             {analysis && (

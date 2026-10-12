@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Senyih | Island Tourism Policy Engine",
+  title: "MY Pulau | Island Tourism Policy Engine",
   description: "DOSM Datathon 2026: an empirical AI policy engine for Malaysian island tourism.",
 };
 

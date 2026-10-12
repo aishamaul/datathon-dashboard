@@ -16,15 +16,19 @@ export type Candidate = {
 
 export type IllustrativeResult = {
   scenario: ScenarioKey;
+  disturbanceFactor: number;
+  baselineDisturbance: number;
   disturbance: number;
   visitorCap: number;
   targetALOS: number;
+  balancedCandidate: Candidate;
   ehi: number;
   economicYield: number;
   marineHealth: number;
   wasteHealth: number;
   ecoHealth: number;
   bindingConstraint: PressureKey;
+  bindingExplanation: string;
   candidates: Candidate[];
   frontier: Candidate[];
   recommendations: string[];
@@ -96,8 +100,16 @@ export function generateIllustrativeScenarios(dna: TourismDNA, data: SupportingD
   const pillars = calculateIllustrativePillars(selected.visitors, selected.alos, dna, data, scenario);
   const pressures = { marine: 1 - selected.marineHealth, waste: 1 - selected.wasteHealth, eco: 1 - selected.ecoHealth };
   const bindingConstraint = (Object.keys(pressures) as PressureKey[]).reduce((worst, key) => pressures[key] > pressures[worst] ? key : worst, 'marine');
+  const disturbanceFactor = SCENARIO_FACTORS[scenario];
+  const estimatedWasteTonnes = pillars.visitorNights * 1.17 / 1000;
+  const volumeVsPeak = selected.visitors / data.historicalPeakArrivals;
+  const bindingExplanation = bindingConstraint === 'marine'
+    ? `Marine health is the lowest pillar at ${(selected.marineHealth * 100).toFixed(1)}%. Under this synthetic scenario, coral cover starts at ${(data.baselineLiveCoralCover * 100).toFixed(1)}% and disturbance is ${(pillars.disturbance * 100).toFixed(1)}% (${(disturbanceFactor * 100).toFixed(0)}% of its ${(data.baselineDisturbance * 100).toFixed(1)}% baseline).`
+    : bindingConstraint === 'waste'
+      ? `At ${Math.round(pillars.visitorNights).toLocaleString('en-US')} visitor-nights, the 1.17 kg/person-night assumption implies ${estimatedWasteTonnes.toFixed(0)} tonnes of waste against ${data.annualWasteCapacityTonnes.toLocaleString('en-US')} tonnes of synthetic annual capacity; this gives the lowest pillar health at ${(selected.wasteHealth * 100).toFixed(1)}%.`
+      : `The selected ${(volumeVsPeak * 100).toFixed(0)}% of historical-peak arrival level produces the lowest terrestrial health score (${(selected.ecoHealth * 100).toFixed(1)}%) under the engine's nonlinear volume-to-peak pressure function.`;
   const recommendations = derivePolicyInsights(dna, bindingConstraint, selected);
-  return { scenario, disturbance: pillars.disturbance, visitorCap: selected.visitors, targetALOS: selected.alos, ehi: selected.ehi, economicYield: selected.yield, marineHealth: selected.marineHealth, wasteHealth: selected.wasteHealth, ecoHealth: selected.ecoHealth, bindingConstraint, candidates, frontier, recommendations };
+  return { scenario, disturbanceFactor, baselineDisturbance: data.baselineDisturbance, disturbance: pillars.disturbance, visitorCap: selected.visitors, targetALOS: selected.alos, balancedCandidate: selected, ehi: selected.ehi, economicYield: selected.yield, marineHealth: selected.marineHealth, wasteHealth: selected.wasteHealth, ecoHealth: selected.ecoHealth, bindingConstraint, bindingExplanation, candidates, frontier, recommendations };
 }
 
 export function derivePolicyInsights(dna: TourismDNA, constraint: PressureKey, result: Pick<Candidate, 'visitors' | 'alos'>): string[] {

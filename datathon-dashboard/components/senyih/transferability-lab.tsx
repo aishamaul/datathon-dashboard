@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Activity, ArrowRight, BarChart3, Check, Database, Factory, Leaf, Map, RotateCcw, Waves } from 'lucide-react';
-import { Cell, Pie, PieChart, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, ArrowRight, Database, Expand, Factory, Leaf, Map, Minimize2, RotateCcw, Star, Waves } from 'lucide-react';
+import { Cell, Legend, Pie, PieChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from 'recharts';
 import { REPORT_COMPARISON, TRANSFERABILITY_PRESETS, DEFAULT_SUPPORTING_DATA, normaliseTourismDNA, type IslandDemoProfile, type TourismDNA } from '@/lib/data/transferability';
-import { classifyTourismDNA, dominantSector, runIllustrativeAnalysis, type IllustrativeResult, type ScenarioKey } from '@/lib/engine/transferability';
+import { classifyTourismDNA, dominantSector, runIllustrativeAnalysis, type Candidate, type IllustrativeResult, type ScenarioKey } from '@/lib/engine/transferability';
 import { fmtInt, pct1 } from '@/lib/format';
+import { AnalysisOverlay, type PreviewPoint } from './analysis-overlay';
 import { Badge, Callout, CardHeader, GlassCard } from './ui';
 import { useChartColors } from './chart-theme';
 
@@ -15,9 +16,9 @@ const DNA_META = [
   { key: 'eco', label: 'Eco / Geotourism', short: 'Eco', color: '#10b981', soft: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/30' },
 ] as const;
 
-const stageNames = ['Reading Tourism DNA', 'Evaluating Environmental Pressures', 'Exploring Sustainable Scenarios', 'Generating Island-Specific Insights'];
-const stageIcons = [Map, Activity, BarChart3, Check];
 const pressureLabels = { marine: 'Reef / Marine', waste: 'Waste / Infrastructure', eco: 'Eco / Terrestrial' } as const;
+type TradeoffPoint = { x: number; y: number; z: number; kind: 'candidate' | 'frontier' | 'balanced'; visitors: number; alos: number; visitorNights: number; ehi: number };
+const toTradeoffPoint = (point: Candidate, kind: TradeoffPoint['kind']): TradeoffPoint => ({ x: point.yield / 1_000_000, y: point.ehi * 100, z: kind === 'balanced' ? 480 : kind === 'frontier' ? 2 : 1, kind, visitors: point.visitors, alos: point.alos, visitorNights: point.yield, ehi: point.ehi * 100 });
 
 function DnaDonut({ dna, size = 220 }: { dna: TourismDNA; size?: number }) {
   const data = DNA_META.map((item) => ({ name: item.short, value: dna[item.key], color: item.color }));
@@ -35,31 +36,17 @@ function DnaDonut({ dna, size = 220 }: { dna: TourismDNA; size?: number }) {
   );
 }
 
-function Pipeline({ active }: { active: number }) {
-  return (
-    <div className="grid grid-cols-1 gap-2 md:grid-cols-4 md:gap-0" aria-label="Illustrative analysis pipeline">
-      {stageNames.map((name, index) => {
-        const Icon = stageIcons[index];
-        return <div key={name} className={`relative flex items-center gap-3 rounded-2xl border p-3 md:mx-1 md:block md:text-center transition-all duration-500 ${index <= active ? 'border-cyan-300 bg-cyan-50/80 text-cyan-950 shadow-sm dark:border-cyan-400/40 dark:bg-cyan-500/10 dark:text-cyan-100' : 'border-sky-200/70 bg-white/40 text-sky-500 dark:border-sky-800/60 dark:bg-slate-900/30'}`}>
-          <div className={`mx-0 grid h-9 w-9 shrink-0 place-items-center rounded-xl md:mx-auto md:mb-2 ${index <= active ? 'bg-cyan-500 text-white' : 'bg-sky-100 text-sky-500 dark:bg-slate-800'}`}><Icon size={17} /></div>
-          <div><p className="text-[10px] font-black uppercase tracking-[0.12em]">0{index + 1}</p><p className="text-xs font-bold leading-tight">{name}</p></div>
-          {index < 3 && <span className="hidden md:block absolute right-[-15px] top-7 z-10 text-cyan-400 motion-safe:animate-pulse"><ArrowRight size={20} /></span>}
-        </div>;
-      })}
-    </div>
-  );
-}
-
 function formatPressure(key: keyof typeof pressureLabels) { return pressureLabels[key]; }
 
 export function TransferabilityLab() {
+  const journeyRef = useRef<HTMLDivElement>(null);
+  const [overlayActive, setOverlayActive] = useState(false);
   const [islandName, setIslandName] = useState('Redang');
   const [selectedPreset, setSelectedPreset] = useState('redang');
   const [inputMode, setInputMode] = useState<'rooms' | 'percent'>('rooms');
   const [values, setValues] = useState({ marine: 750, retail: 100, eco: 150 });
-  const [hasAnalysed, setHasAnalysed] = useState(false);
+  const [analysisPhase, setAnalysisPhase] = useState<'editing' | 'results'>('editing');
   const [simulationMode, setSimulationMode] = useState(false);
-  const [pipelineStep, setPipelineStep] = useState(0);
   const [scenario, setScenario] = useState<ScenarioKey>('current');
 
   const dna = useMemo(() => normaliseTourismDNA(values), [values]);
@@ -69,30 +56,63 @@ export function TransferabilityLab() {
   const classification = classifyTourismDNA(dna);
   const activePreset = TRANSFERABILITY_PRESETS.find((preset) => preset.id === selectedPreset);
   const supportingData = activePreset?.supportingData ?? DEFAULT_SUPPORTING_DATA;
-  const result = useMemo<IllustrativeResult | null>(() => simulationMode && isValid ? runIllustrativeAnalysis(dna, supportingData, scenario) : null, [dna, isValid, scenario, simulationMode, supportingData]);
-  const chartData = result?.candidates.filter((_, index) => index % 5 === 0).map((point) => ({ x: point.yield / 1000000, y: point.ehi * 100, visitors: point.visitors, alos: point.alos })) ?? [];
+  const analysisRequested = simulationMode || overlayActive;
+  const result = useMemo<IllustrativeResult | null>(() => analysisRequested && isValid ? runIllustrativeAnalysis(dna, supportingData, scenario) : null, [analysisRequested, dna, isValid, scenario, supportingData]);
+  const previewPoints = useMemo<PreviewPoint[]>(() => {
+    if (!overlayActive || !result) return [];
+    const run = result;
+    const xs = run.candidates.map((p) => p.yield);
+    const ys = run.candidates.map((p) => p.ehi);
+    const [x0, y0] = [Math.min(...xs), Math.min(...ys)];
+    const [xr, yr] = [Math.max(...xs) - x0 || 1, Math.max(...ys) - y0 || 1];
+    const norm = (p: Candidate, kind: PreviewPoint['kind']): PreviewPoint => ({ x: (p.yield - x0) / xr, y: (p.ehi - y0) / yr, kind });
+    const selected = run.balancedCandidate;
+    return [
+      ...run.candidates.filter((p, i) => !p.pareto && i % 2 === 0).map((p) => norm(p, 'candidate')),
+      ...run.frontier.map((p) => norm(p, 'frontier')),
+      norm(selected, 'balanced'),
+    ];
+  }, [overlayActive, result]);
+  const equilibrium = result?.balancedCandidate;
+  const candidatePoints = result?.candidates.filter((point, index) => !point.pareto && index % 5 === 0).map((point) => toTradeoffPoint(point, 'candidate')) ?? [];
+  const frontierPoints = result?.frontier.filter((point) => point !== equilibrium).map((point) => toTradeoffPoint(point, 'frontier')) ?? [];
+  const equilibriumPoint = equilibrium ? [toTradeoffPoint(equilibrium, 'balanced')] : [];
   const radarData = result ? [
     { subject: 'Marine', score: result.marineHealth * 100, weight: dna.marine * 100 },
     { subject: 'Waste', score: result.wasteHealth * 100, weight: dna.retail * 100 },
     { subject: 'Terrestrial', score: result.ecoHealth * 100, weight: dna.eco * 100 },
   ] : [];
 
-  const updateValue = (key: keyof TourismDNA, value: string) => setValues((current) => ({ ...current, [key]: Math.max(0, Number(value) || 0) }));
-  const choosePreset = (preset: IslandDemoProfile) => {
-    setSelectedPreset(preset.id); setIslandName(preset.name); setInputMode('percent'); setValues({ marine: preset.tourismDNA.marine * 100, retail: preset.tourismDNA.retail * 100, eco: preset.tourismDNA.eco * 100 }); setHasAnalysed(false); setSimulationMode(false);
+  const updateValue = (key: keyof TourismDNA, value: string) => {
+    setAnalysisPhase('editing');
+    setSimulationMode(false);
+    setValues((current) => ({ ...current, [key]: Math.max(0, Number(value) || 0) }));
   };
-  const analyse = () => { if (!isValid) return; setHasAnalysed(true); setSimulationMode(false); setPipelineStep(0); window.setTimeout(() => setPipelineStep(1), 220); window.setTimeout(() => setPipelineStep(2), 500); window.setTimeout(() => setPipelineStep(3), 780); };
+  const choosePreset = (preset: IslandDemoProfile) => {
+    setSelectedPreset(preset.id); setIslandName(preset.name); setInputMode('percent'); setValues({ marine: preset.tourismDNA.marine * 100, retail: preset.tourismDNA.retail * 100, eco: preset.tourismDNA.eco * 100 }); setAnalysisPhase('editing'); setSimulationMode(false);
+  };
+  const completeOverlay = () => {
+    setSimulationMode(true);
+    setAnalysisPhase('results');
+    setOverlayActive(false);
+    requestAnimationFrame(() => journeyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+  const analyse = () => {
+    if (!isValid || !islandName.trim()) return;
+    setSimulationMode(false);
+    setOverlayActive(true);
+  };
   const normalisePercentages = () => { if (!total) return; setValues({ marine: +(values.marine / total * 100).toFixed(2), retail: +(values.retail / total * 100).toFixed(2), eco: +(values.eco / total * 100).toFixed(2) }); };
-  const reset = () => { const preset = TRANSFERABILITY_PRESETS[0]; choosePreset(preset); setHasAnalysed(false); setPipelineStep(0); setScenario('current'); };
+  const reset = () => { const preset = TRANSFERABILITY_PRESETS[0]; choosePreset(preset); setAnalysisPhase('editing'); setScenario('current'); };
 
   return <div className="space-y-5 text-sky-950 dark:text-sky-50">
+    {overlayActive && <AnalysisOverlay islandName={islandName} dna={dna} points={previewPoints} onComplete={completeOverlay} />}
     <section className="senyih-fade overflow-hidden rounded-[2rem] border border-cyan-200/70 bg-white/55 p-6 shadow-xl shadow-cyan-900/5 backdrop-blur-xl md:p-9 dark:border-cyan-400/15 dark:bg-slate-900/55">
       <div className="mb-5 flex items-center gap-3" aria-label="Malaysia branding">
-        <div className="h-10 w-10 rounded-xl bg-white bg-contain bg-center bg-no-repeat shadow-sm ring-1 ring-sky-200" style={{ backgroundImage: "url('/malaysia.jpg')" }} />
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-700 dark:text-sky-300">Malaysia · DOSM Datathon 2026</p>
       </div>
       <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-        <div><Badge tone="teal">TRANSFERABILITY LAB · ILLUSTRATIVE WORKFLOW</Badge><h2 className="mt-4 max-w-2xl text-4xl font-black tracking-tight text-sky-950 dark:text-white md:text-5xl">Fix MY Island.</h2><p className="mt-4 max-w-xl text-sm leading-relaxed text-sky-800/80 dark:text-sky-200/75">Watch one reusable decision-making framework adapt to a new island profile. Tourism DNA is a starting structure, not a substitute for island-specific evidence.</p><div className="mt-6 flex flex-wrap gap-3"><div className="rounded-2xl border border-sky-200 bg-white/70 px-4 py-3 dark:border-sky-800/60 dark:bg-slate-950/40"><p className="text-[10px] font-black uppercase tracking-widest text-sky-500">Shared architecture</p><p className="mt-1 text-sm font-bold">DNA → pressure → scenarios</p></div><div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 dark:border-emerald-500/30 dark:bg-emerald-500/10"><p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Scientific boundary</p><p className="mt-1 text-sm font-bold">DNA-only first</p></div></div></div>
+        <div><h2 className="mt-4 max-w-2xl text-4xl font-black tracking-tight text-sky-950 dark:text-white md:text-5xl">Fix <span className="bg-cover bg-center bg-clip-text text-transparent" style={{ backgroundImage: "url('/malaysia.jpg')", WebkitBackgroundClip: 'text' }}>MY</span> Island.</h2><p className="mt-4 max-w-xl text-sm leading-relaxed text-sky-800/80 dark:text-sky-200/75">Watch one reusable decision-making framework adapt to a new island profile. Tourism DNA is a starting structure, not a substitute for island-specific evidence.</p><div className="mt-6 flex flex-wrap gap-3"><div className="rounded-2xl border border-sky-200 bg-white/70 px-4 py-3 dark:border-sky-800/60 dark:bg-slate-950/40"><p className="text-[10px] font-black uppercase tracking-widest text-sky-500">Shared architecture</p><p className="mt-1 text-sm font-bold">DNA → pressure → scenarios</p></div><div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 dark:border-emerald-500/30 dark:bg-emerald-500/10"><p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Scientific boundary</p><p className="mt-1 text-sm font-bold">DNA informs. Evidence sets targets</p></div></div></div>
         <div className="relative rounded-[1.75rem] border border-cyan-200/70 bg-gradient-to-br from-cyan-500/15 via-white/50 to-emerald-400/10 p-6 dark:border-cyan-400/20 dark:from-cyan-400/10 dark:via-slate-900/30"><div className="absolute inset-x-10 top-1/2 h-px bg-gradient-to-r from-cyan-300/0 via-cyan-400 to-emerald-400/0" /><div className="relative flex items-center justify-center gap-3 sm:gap-8"><div className="grid h-16 w-16 place-items-center rounded-2xl bg-cyan-500 text-white shadow-lg shadow-cyan-500/30"><Waves size={28} /></div><ArrowRight className="text-cyan-500 motion-safe:animate-pulse" /><div className="grid h-16 w-16 place-items-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"><Leaf size={28} /></div><ArrowRight className="text-emerald-500 motion-safe:animate-pulse" /><div className="grid h-16 w-16 place-items-center rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/30"><Factory size={28} /></div></div><p className="relative mt-5 text-center text-xs font-bold text-sky-700 dark:text-sky-200">Same framework ≠ same recommendation</p></div>
       </div>
     </section>
@@ -100,31 +120,192 @@ export function TransferabilityLab() {
     <div className="grid gap-5 xl:grid-cols-[0.86fr_1.14fr]">
       <GlassCard className="p-6"><CardHeader title="01 · Choose or create an island" sub="Every preset is synthetic illustrative demo data." />
         <div className="grid grid-cols-3 gap-2">{TRANSFERABILITY_PRESETS.map((preset) => <button key={preset.id} type="button" onClick={() => choosePreset(preset)} className={`rounded-2xl border p-3 text-left transition ${selectedPreset === preset.id ? 'border-cyan-400 bg-cyan-50 shadow-sm dark:border-cyan-400/60 dark:bg-cyan-500/10' : 'border-sky-200 bg-white/50 hover:border-cyan-300 dark:border-sky-800/70 dark:bg-slate-900/30'}`}><span className="block text-sm font-black">{preset.name}</span><span className="mt-1 block text-[10px] font-bold text-cyan-600">Illustrative</span></button>)}</div>
-        <label className="mt-5 block text-xs font-bold text-sky-700 dark:text-sky-200" htmlFor="island-name">Island name</label><div className="mt-2 flex gap-2"><input id="island-name" value={islandName} onChange={(event) => { setIslandName(event.target.value); setSelectedPreset('custom'); }} className="min-w-0 flex-1 rounded-xl border border-sky-200 bg-white/80 px-3 py-2 text-sm font-bold outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 dark:border-sky-800 dark:bg-slate-950/40" placeholder="Enter an island name" /><button type="button" onClick={reset} aria-label="Reset island profile" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-200 text-sky-600 hover:bg-sky-50 dark:border-sky-800 dark:hover:bg-slate-800"><RotateCcw size={16} /></button></div>
+        <label className="mt-5 block text-xs font-bold text-sky-700 dark:text-sky-200" htmlFor="island-name">Island name</label><div className="mt-2 flex gap-2"><input id="island-name" value={islandName} onChange={(event) => { setIslandName(event.target.value); setSelectedPreset('custom'); setAnalysisPhase('editing'); setSimulationMode(false); }} className="min-w-0 flex-1 rounded-xl border border-sky-200 bg-white/80 px-3 py-2 text-sm font-bold outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 dark:border-sky-800 dark:bg-slate-950/40" placeholder="Enter an island name" /><button type="button" onClick={reset} aria-label="Reset island profile" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-200 text-sky-600 hover:bg-sky-50 dark:border-sky-800 dark:hover:bg-slate-800"><RotateCcw size={16} /></button></div>
         <div className="mt-6 flex items-center justify-between gap-3"><div><p className="text-sm font-black">Tourism DNA inputs</p><p className="text-xs text-sky-700/70 dark:text-sky-300/70">{inputMode === 'rooms' ? 'Room counts are automatically L1-normalised.' : 'Percentages are shown as entered.'}</p></div><div className="flex rounded-xl border border-sky-200 bg-white/60 p-1 text-xs font-bold dark:border-sky-800 dark:bg-slate-950/40"><button type="button" onClick={() => setInputMode('rooms')} className={`rounded-lg px-2 py-1 ${inputMode === 'rooms' ? 'bg-sky-500 text-white' : 'text-sky-700 dark:text-sky-200'}`}>Rooms</button><button type="button" onClick={() => setInputMode('percent')} className={`rounded-lg px-2 py-1 ${inputMode === 'percent' ? 'bg-sky-500 text-white' : 'text-sky-700 dark:text-sky-200'}`}>Percent</button></div></div>
         <div className="mt-4 space-y-4">{DNA_META.map((item) => <div key={item.key} className={`rounded-2xl border p-3 ${item.soft}`}><div className="flex items-center justify-between gap-3"><label htmlFor={`dna-${item.key}`} className="flex items-center gap-2 text-sm font-bold"><span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />{item.label}</label><div className="flex items-center gap-1"><input id={`dna-${item.key}`} type="number" min="0" step="1" value={values[item.key]} onChange={(event) => updateValue(item.key, event.target.value)} className="w-20 rounded-lg border border-white/80 bg-white/80 px-2 py-1 text-right text-sm font-black outline-none dark:border-slate-700 dark:bg-slate-950/40" /><span className="text-xs font-bold text-sky-600 dark:text-sky-300">{inputMode === 'rooms' ? 'rooms' : '%'}</span></div></div><input type="range" min="0" max={inputMode === 'rooms' ? 2000 : 100} step="1" value={values[item.key]} onChange={(event) => updateValue(item.key, event.target.value)} className="senyih-range mt-3 w-full" style={{ '--fill': `${Math.min(100, values[item.key] / (inputMode === 'rooms' ? 20 : 1))}%` } as React.CSSProperties} /></div>)}</div>
         {inputMode === 'percent' && Math.abs(total - 100) > 0.01 && <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"><span>Inputs total {total.toFixed(1)}%. Normalise before analysing.</span><button type="button" onClick={normalisePercentages} className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 font-black text-white">Normalise to 100%</button></div>}
-        <button type="button" disabled={!isValid || !islandName.trim()} onClick={analyse} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-500 px-4 py-3 text-sm font-black text-white shadow-lg shadow-cyan-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50">Analyse This Island <ArrowRight size={17} /></button>
+        <details className="mt-5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+          <summary className="cursor-pointer font-black">Illustrative Simulation — Synthetic Data · Review assumptions</summary>
+          <p className="mt-2 leading-relaxed">The demo uses invented island support assumptions, not observed statistics or validated model outputs. Current preset/custom assumptions: peak arrivals {fmtInt(supportingData.historicalPeakArrivals)}, baseline stay {supportingData.baselineALOS.toFixed(1)} nights, waste capacity {fmtInt(supportingData.annualWasteCapacityTonnes)} tonnes/year, coral cover {pct1(supportingData.baselineLiveCoralCover)}, and baseline disturbance {pct1(supportingData.baselineDisturbance)}. Custom island names use a transparent generic synthetic profile.</p>
+        </details>
+        <button type="button" disabled={!isValid || !islandName.trim()} onClick={analyse} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-500 px-4 py-3 text-sm font-black text-white shadow-lg shadow-cyan-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50">Analyse Island with Demo Data <ArrowRight size={17} /></button>
       </GlassCard>
 
-      <GlassCard className="p-6"><CardHeader title="02 · Tourism DNA preview" sub="Structure tells us where to look; it does not measure ecological health." right={<Badge tone="teal">DNA PROFILE</Badge>} /><div className="grid items-center gap-5 sm:grid-cols-[240px_1fr]"><DnaDonut dna={dna} /><div><p className="text-2xl font-black text-sky-950 dark:text-white">{classification}</p><p className="mt-2 text-sm leading-relaxed text-sky-700/80 dark:text-sky-200/75">Every island has a different tourism DNA. The framework uses this structure to assess where sustainability pressures may arise.</p><div className="mt-5 space-y-2">{DNA_META.map((item) => <div key={item.key} className="flex items-center justify-between text-sm"><span className="flex items-center gap-2 font-semibold"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />{item.short}</span><span className="font-black tabular-nums">{pct1(dna[item.key])}</span></div>)}</div></div></div></GlassCard>
+      <GlassCard className="p-6"><CardHeader title="02 · Island sustainability passport" sub="Live accommodation-derived profile. Tourism structure is not an ecological health score." right={<Badge tone="teal">LIVE PROFILE</Badge>} /><div className="grid items-center gap-5 sm:grid-cols-[240px_1fr]"><DnaDonut dna={dna} /><div><p className="text-2xl font-black text-sky-950 dark:text-white">{classification}</p><p className="mt-2 text-sm leading-relaxed text-sky-700/80 dark:text-sky-200/75">{dominantSector(dna) === 'marine' ? 'This marine-oriented structure suggests reef monitoring and disturbance data will be important to assess.' : dominantSector(dna) === 'retail' ? 'This retail-oriented structure suggests waste capacity and visitor-night data will be important to assess.' : dominantSector(dna) === 'eco' ? 'This eco-oriented structure suggests terrestrial site condition and visitor pressure data will be important to assess.' : 'This balanced structure suggests checking pressures across all three sectors.'} Actual ecological health requires destination-specific evidence.</p><div className="mt-5 space-y-2">{DNA_META.map((item) => <div key={item.key} className="flex items-center justify-between text-sm"><span className="flex items-center gap-2 font-semibold"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />{item.short}</span><span className="font-black tabular-nums">{pct1(dna[item.key])}</span></div>)}</div></div></div></GlassCard>
     </div>
 
-    {hasAnalysed && <section className="senyih-fade space-y-5"><GlassCard className="p-6"><CardHeader title="03 · The shared framework is processing this island" sub="A fast visual explanation of the analytical journey." /><Pipeline active={pipelineStep} /></GlassCard>
-      {!simulationMode ? <div className="grid gap-5 lg:grid-cols-2"><GlassCard className="p-6"><div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-100 text-cyan-600 dark:bg-cyan-500/15 dark:text-cyan-300"><Map size={21} /></div><div><p className="text-xs font-black uppercase tracking-widest text-cyan-600">DNA-only analysis</p><h3 className="text-xl font-black">Your island profile is ready</h3></div></div><p className="mt-5 text-sm leading-relaxed text-sky-800 dark:text-sky-100">{islandName || 'This island'} is classified as a <b>{classification.toLowerCase()}</b>. {dominantSector(dna) === 'marine' ? 'Reef condition and disturbance management deserve early attention.' : dominantSector(dna) === 'retail' ? 'Waste and local infrastructure deserve early attention.' : 'Terrestrial site stewardship deserves early attention.'}</p><p className="mt-3 text-xs leading-relaxed text-sky-700/70 dark:text-sky-300/70">This is a qualitative reading of tourism structure. It does not establish a sustainable visitor cap, ALOS target or EHI.</p></GlassCard><GlassCard className="border-emerald-200 bg-emerald-50/60 p-6 dark:border-emerald-500/30 dark:bg-emerald-500/10"><p className="text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Unlock quantitative recommendations</p><h3 className="mt-2 text-xl font-black">Add illustrative supporting data</h3><p className="mt-3 text-sm leading-relaxed text-emerald-950/80 dark:text-emerald-50/80">Continue with a clearly labelled synthetic profile to demonstrate scenario analysis. These values are not observed island statistics or validated policy recommendations.</p><button type="button" onClick={() => setSimulationMode(true)} className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-emerald-600/20">Continue with Illustrative Demo Data <ArrowRight size={16} /></button></GlassCard></div> : <SimulationResults result={result!} dna={dna} islandName={islandName} scenario={scenario} onScenarioChange={setScenario} chartData={chartData} radarData={radarData} />}
-    </section>}
-
-    <Comparison currentName={islandName || 'New Island'} dna={dna} result={result} />
-    <section className="overflow-hidden rounded-[2rem] border border-sky-800/20 bg-gradient-to-br from-sky-950 via-cyan-950 to-emerald-950 p-7 text-white shadow-2xl md:p-10"><p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">The scalable idea</p><h2 className="mt-3 text-3xl font-black tracking-tight md:text-5xl">ONE FRAMEWORK. EVERY ISLAND.</h2><h3 className="mt-2 text-2xl font-black text-amber-300 md:text-3xl">All We Need Is Data.</h3><p className="mt-5 max-w-3xl text-sm leading-relaxed text-sky-100/80">From Langkawi to Tioman and beyond, the analytical architecture can adapt to new destinations. Different data enters the same framework and produces island-specific recommendations.</p><div className="mt-8 grid gap-3 md:grid-cols-3"><div className="rounded-2xl border border-white/15 bg-white/10 p-4"><Map size={20} className="text-cyan-300" /><p className="mt-3 font-black">Tourism Structure</p><p className="mt-1 text-xs text-sky-100/70">Accommodation room counts by tourism category.</p></div><div className="rounded-2xl border border-white/15 bg-white/10 p-4"><Activity size={20} className="text-amber-300" /><p className="mt-3 font-black">Visitor Activity</p><p className="mt-1 text-xs text-sky-100/70">Historical arrivals and average length of stay.</p></div><div className="rounded-2xl border border-white/15 bg-white/10 p-4"><Database size={20} className="text-emerald-300" /><p className="mt-3 font-black">Environment & infrastructure</p><p className="mt-1 text-xs text-sky-100/70">Reef, disturbance and waste-capacity evidence.</p></div></div><p className="mt-8 text-lg font-black text-white md:text-xl">We are not transferring Langkawi&apos;s numbers. We are transferring the decision-making framework.</p></section>
+    {analysisPhase === 'results' && result && <div ref={journeyRef} className="senyih-fade scroll-mt-24 space-y-5">
+      <SimulationResults result={result} dna={dna} islandName={islandName} scenario={scenario} onScenarioChange={setScenario} candidatePoints={candidatePoints} frontierPoints={frontierPoints} equilibriumPoint={equilibriumPoint} radarData={radarData} />
+      <Comparison currentName={islandName || 'New Island'} dna={dna} result={result} />
+      <section className="overflow-hidden rounded-[2rem] border border-sky-800/20 bg-gradient-to-br from-sky-950 via-cyan-950 to-emerald-950 p-7 text-white shadow-2xl md:p-10"><p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">The scalable idea</p><h2 className="mt-3 text-3xl font-black tracking-tight md:text-5xl">ONE FRAMEWORK. EVERY ISLAND.</h2><h3 className="mt-2 text-2xl font-black text-amber-300 md:text-3xl">All We Need Is Data.</h3><p className="mt-5 max-w-3xl text-sm leading-relaxed text-sky-100/80">From Langkawi to Tioman and beyond, the analytical architecture can adapt to new destinations. Different data enters the same framework and produces island-specific recommendations.</p><div className="mt-8 grid gap-3 md:grid-cols-3"><div className="rounded-2xl border border-white/15 bg-white/10 p-4"><Map size={20} className="text-cyan-300" /><p className="mt-3 font-black">Tourism Structure</p><p className="mt-1 text-xs text-sky-100/70">Accommodation room counts by tourism category.</p></div><div className="rounded-2xl border border-white/15 bg-white/10 p-4"><Activity size={20} className="text-amber-300" /><p className="mt-3 font-black">Visitor Activity</p><p className="mt-1 text-xs text-sky-100/70">Historical annual arrivals and average length of stay.</p></div><div className="rounded-2xl border border-white/15 bg-white/10 p-4"><Database size={20} className="text-emerald-300" /><p className="mt-3 font-black">Environment & infrastructure</p><p className="mt-1 text-xs text-sky-100/70">Reef condition, disturbance and waste-processing capacity.</p></div></div><p className="mt-8 text-lg font-black text-white md:text-xl">We are not transferring Langkawi&apos;s numbers. We are transferring the decision-making framework.</p></section>
+    </div>}
   </div>;
 }
 
-function SimulationResults({ result, islandName, scenario, onScenarioChange, chartData, radarData }: { result: IllustrativeResult; dna: TourismDNA; islandName: string; scenario: ScenarioKey; onScenarioChange: (value: ScenarioKey) => void; chartData: { x: number; y: number; visitors: number; alos: number }[]; radarData: { subject: string; score: number; weight: number }[] }) {
-  const colors = useChartColors();
-  return <div className="space-y-5"><Callout tone="amber" title="SIMULATION MODE — Illustrative mock data">These results demonstrate the transferable workflow. They are not validated policy recommendations and do not use the trained Ridge model.</Callout><div className="grid grid-cols-2 gap-3 xl:grid-cols-4"><Stat label="Illustrative visitor target" value={fmtInt(result.visitorCap)} /><Stat label="Illustrative target ALOS" value={`${result.targetALOS.toFixed(2)} nights`} /><Stat label="Illustrative composite EHI" value={pct1(result.ehi)} /><Stat label="Binding constraint" value={formatPressure(result.bindingConstraint)} /></div><GlassCard className="p-6"><div className="flex flex-wrap items-start justify-between gap-4"><CardHeader title={`${islandName} · illustrative scenario explorer`} sub="The preferred point balances tourism value with ecological health instead of simply maximising visitor numbers." /><div className="flex rounded-xl border border-sky-200 bg-white/70 p-1 text-xs font-black dark:border-sky-800 dark:bg-slate-950/40">{(['optimal', 'current', 'crisis'] as ScenarioKey[]).map((key) => <button key={key} type="button" onClick={() => onScenarioChange(key)} className={`rounded-lg px-3 py-2 capitalize ${scenario === key ? 'bg-cyan-500 text-white' : 'text-sky-700 dark:text-sky-200'}`}>{key}</button>)}</div></div><div className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]"><div className="h-72 min-w-0"><ResponsiveContainer width="100%" height="100%"><ScatterChart margin={{ top: 10, right: 12, bottom: 25, left: 2 }}><XAxis type="number" dataKey="x" name="Yield" tickFormatter={(value) => `${value}M`} tick={{ fill: colors.tickX, fontSize: 11 }} /><YAxis type="number" dataKey="y" name="EHI" unit="%" domain={[0, 100]} tickFormatter={(value) => `${value}%`} tick={{ fill: colors.tickLeft, fontSize: 11 }} /><Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(value, name) => name === 'Yield' ? `${Number(value).toFixed(2)}M visitor-nights` : `${Number(value).toFixed(1)}%`} /><Scatter name="Illustrative candidate scenarios" data={chartData} fill="#06b6d4" fillOpacity={0.35} /></ScatterChart></ResponsiveContainer></div><div className="h-72 min-w-0"><ResponsiveContainer width="100%" height="100%"><RadarChart data={radarData}><PolarGrid stroke={colors.grid} /><PolarAngleAxis dataKey="subject" tick={{ fill: colors.tickX, fontSize: 11 }} /><Radar name="Health" dataKey="score" stroke="#10b981" fill="#10b981" fillOpacity={0.25} /><Radar name="DNA weight" dataKey="weight" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.12} /></RadarChart></ResponsiveContainer></div></div><div className="mt-3 flex flex-wrap gap-2"><Badge tone="amber">{scenario} disturbance · {Math.round(result.disturbance * 100)}% baseline</Badge><Badge tone="teal">{result.frontier.length} Pareto-efficient points</Badge><Badge tone="sky">Illustrative trade-off model</Badge></div></GlassCard><GlassCard className="p-6"><CardHeader title="What should this island prioritise?" sub="Insights follow the calculated pressure pattern and the entered Tourism DNA." /><div className="grid gap-3 md:grid-cols-3">{result.recommendations.map((recommendation, index) => <div key={recommendation} className="rounded-2xl border border-sky-200 bg-white/55 p-4 dark:border-sky-800/60 dark:bg-slate-950/30"><div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-cyan-100 text-cyan-600 dark:bg-cyan-500/15 dark:text-cyan-300">{index === 0 ? <Factory size={17} /> : index === 1 ? <Waves size={17} /> : <Leaf size={17} />}</div><p className="text-sm font-semibold leading-relaxed">{recommendation}</p></div>)}</div></GlassCard></div>;
+function ParetoPlot({ candidatePoints, frontierPoints, equilibriumPoint, colors, expanded = false }: {
+  candidatePoints: TradeoffPoint[];
+  frontierPoints: TradeoffPoint[];
+  equilibriumPoint: TradeoffPoint[];
+  colors: ReturnType<typeof useChartColors>;
+  expanded?: boolean;
+}) {
+  const allPoints = [...candidatePoints, ...frontierPoints, ...equilibriumPoint];
+  const xValues = allPoints.map((point) => point.x);
+  const minX = Math.min(...xValues);
+  const maxX = Math.max(...xValues);
+  const xPadding = Math.max((maxX - minX) * 0.06, 0.05);
+
+  return <ResponsiveContainer width="100%" height="100%">
+    <ScatterChart margin={expanded ? { top: 24, right: 40, bottom: 40, left: 24 } : { top: 12, right: 18, bottom: 18, left: 2 }}>
+      <XAxis type="number" dataKey="x" name="Yield" domain={[minX - xPadding, maxX + xPadding]} tickFormatter={(value) => `${Number(value).toFixed(1)}M`} tick={{ fill: colors.tickX, fontSize: expanded ? 14 : 11 }} />
+      <YAxis type="number" dataKey="y" name="EHI" domain={[0, 100]} tickFormatter={(value) => `${Number(value).toFixed(0)}%`} tick={{ fill: colors.tickLeft, fontSize: expanded ? 14 : 11 }} />
+      <ZAxis type="number" dataKey="z" domain={[1, 480]} range={[12, 400]} />
+      <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {
+        const point = payload?.[0]?.payload as TradeoffPoint | undefined;
+        if (!active || !point) return null;
+        return <div className="rounded-xl border border-sky-200 bg-white p-3 text-xs shadow-xl dark:border-sky-700 dark:bg-slate-900">
+          <p className="mb-2 font-black text-sky-950 dark:text-white">{point.kind === 'balanced' ? 'Balanced equilibrium' : point.kind === 'frontier' ? 'Pareto-efficient scenario' : 'Illustrative candidate'}</p>
+          <p>Annual visitors: <b>{fmtInt(point.visitors)}</b></p><p>Target ALOS: <b>{point.alos.toFixed(2)} nights</b></p>
+          <p>Tourist-nights: <b>{fmtInt(point.visitorNights)}</b></p><p>Illustrative EHI: <b>{point.ehi.toFixed(1)}%</b></p>
+        </div>;
+      }} />
+      <Scatter name="Candidate scenarios" data={candidatePoints} fill="#38bdf8" fillOpacity={0.35} shape="circle" isAnimationActive={false} legendType="circle" />
+      <Scatter name="Pareto-efficient" data={frontierPoints} fill="#10b981" shape="diamond" isAnimationActive animationDuration={550} legendType="diamond" />
+      <Scatter name="Balanced equilibrium" data={equilibriumPoint} fill="#f59e0b" stroke="#ffffff" strokeWidth={2} shape="star" isAnimationActive animationDuration={700} legendType="star" zIndex={900} />
+    </ScatterChart>
+  </ResponsiveContainer>;
 }
 
-function Stat({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 dark:border-cyan-500/25 dark:bg-cyan-500/10"><p className="text-[10px] font-black uppercase tracking-wide text-cyan-700 dark:text-cyan-300">{label}</p><p className="mt-2 text-xl font-black tabular-nums text-sky-950 dark:text-white">{value}</p></div>; }
+function SimulationResults({ result, islandName, scenario, onScenarioChange, candidatePoints, frontierPoints, equilibriumPoint, radarData }: { result: IllustrativeResult; dna: TourismDNA; islandName: string; scenario: ScenarioKey; onScenarioChange: (value: ScenarioKey) => void; candidatePoints: TradeoffPoint[]; frontierPoints: TradeoffPoint[]; equilibriumPoint: TradeoffPoint[]; radarData: { subject: string; score: number; weight: number }[] }) {
+  const colors = useChartColors();
+  const [paretoExpanded, setParetoExpanded] = useState(false);
+  const scenarioName = scenario[0].toUpperCase() + scenario.slice(1);
+  const weightedTerms = radarData.map((pillar) => `${pillar.subject}: ${pillar.weight.toFixed(1)}% weight × ${pillar.score.toFixed(1)}% health`).join(' · ');
+
+  useEffect(() => {
+    if (!paretoExpanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setParetoExpanded(false); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [paretoExpanded]);
+
+  return (
+    <div className="space-y-5">
+      <Callout tone="amber" title="Illustrative Simulation — Synthetic Data">
+        These outputs use synthetic supporting data for {islandName}. They are not observed {islandName} tourism or environmental statistics, validated policy recommendations, or outputs from the report&apos;s trained Ridge model.
+      </Callout>
+
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <Stat label="Illustrative visitor target" value={fmtInt(result.visitorCap)} />
+        <Stat label="Illustrative target ALOS" value={`${result.targetALOS.toFixed(2)} nights`} />
+        <Stat label="Illustrative composite EHI" value={pct1(result.ehi)} />
+        <Stat label="Calculated binding constraint" value={formatPressure(result.bindingConstraint)} detail={result.bindingExplanation} />
+      </div>
+
+      <GlassCard className="p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <CardHeader title={`${islandName} · illustrative scenario explorer`} sub="Each point is a synthetic arrivals-and-stay combination. The star marks the balanced solution selected from the Pareto-efficient set." />
+          <div className="flex rounded-xl border border-sky-200 bg-white/70 p-1 dark:border-sky-800 dark:bg-slate-950/40" role="group" aria-label="Disturbance scenario">
+            {(['optimal', 'current', 'crisis'] as ScenarioKey[]).map((key) => {
+              const factor = key === 'optimal' ? 50 : key === 'current' ? 100 : 150;
+              return <button key={key} type="button" aria-pressed={scenario === key} onClick={() => onScenarioChange(key)} className={`rounded-lg px-3 py-2 text-left capitalize transition ${scenario === key ? 'bg-cyan-500 text-white' : 'text-sky-700 dark:text-sky-200'}`}>
+                <span className="block text-xs font-black">{key}</span><span className="block text-[10px] opacity-80">{factor}% baseline</span>
+              </button>;
+            })}
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="min-w-0">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-black uppercase tracking-wide text-sky-700 dark:text-sky-300">Illustrative economic yield vs ecological health</p>
+              <button type="button" onClick={() => setParetoExpanded(true)} aria-label="Expand Pareto chart" title="Expand Pareto chart" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-sky-200 bg-white/70 text-sky-700 transition hover:border-cyan-400 hover:bg-cyan-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-800 dark:bg-slate-900/70 dark:text-sky-200 dark:hover:bg-slate-800">
+                <Expand size={16} />
+              </button>
+            </div>
+            <div className="h-72 min-w-0"><ParetoPlot candidatePoints={candidatePoints} frontierPoints={frontierPoints} equilibriumPoint={equilibriumPoint} colors={colors} /></div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-[11px] font-semibold text-sky-800 dark:text-sky-200" aria-label="Trade-off chart legend">
+              <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-sky-400" />Candidate scenarios</span>
+              <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rotate-45 bg-emerald-500" />Pareto-efficient</span>
+              <span className="inline-flex items-center gap-1.5"><Star size={13} className="fill-amber-400 text-amber-500" />Balanced equilibrium</span>
+            </div>
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+              <p className="flex items-center gap-2 text-xs font-black text-amber-900 dark:text-amber-100"><Star size={14} className="fill-amber-400 text-amber-500" />Selected balanced solution</p>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                <p>Annual visitors <b className="block text-sm">{fmtInt(result.visitorCap)}</b></p>
+                <p>ALOS <b className="block text-sm">{result.targetALOS.toFixed(2)} nights</b></p>
+                <p>Tourist-nights <b className="block text-sm">{fmtInt(result.economicYield)}</b></p>
+                <p>Illustrative EHI <b className="block text-sm">{pct1(result.ehi)}</b></p>
+              </div>
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <p className="mb-2 text-xs font-black uppercase tracking-wide text-sky-700 dark:text-sky-300">Illustrative environmental health and DNA weights</p>
+            <div className="h-72 min-w-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={radarData}>
+                  <PolarGrid stroke={colors.grid} />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: colors.tickX, fontSize: 11 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tickFormatter={(value) => `${Number(value).toFixed(0)}%`} tick={{ fill: colors.tickLeft, fontSize: 9 }} />
+                  <Radar name="Pillar health" dataKey="score" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
+                  <Radar name="Tourism DNA weight" dataKey="weight" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.12} />
+                  <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} />
+                  <Legend verticalAlign="bottom" height={28} wrapperStyle={{ fontSize: 11 }} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mb-3 grid grid-cols-3 gap-2 text-center text-[11px]">
+              {radarData.map((pillar) => <div key={pillar.subject} className="rounded-lg border border-sky-200 bg-white/60 px-2 py-2 dark:border-sky-800/60 dark:bg-slate-950/30"><p className="font-black">{pillar.subject}</p><p className="mt-1 text-emerald-700 dark:text-emerald-300">Health {pillar.score.toFixed(1)}%</p><p className="text-amber-700 dark:text-amber-300">DNA weight {pillar.weight.toFixed(1)}%</p></div>)}
+            </div>
+            <p className="rounded-xl bg-sky-50/80 p-3 text-xs leading-relaxed text-sky-800 dark:bg-sky-500/10 dark:text-sky-100">
+              The composite EHI is a Tourism-DNA-weighted average of Marine, Waste and Terrestrial health. Weights × scores here: {weightedTerms}. Together they produce <b>{pct1(result.ehi)}</b>. DNA weights describe tourism structure, not health.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Badge tone="amber">{scenarioName}: {Math.round(result.disturbanceFactor * 100)}% of baseline · adjusted level {pct1(result.disturbance)}</Badge>
+          <Badge tone="teal">{result.candidates.length} illustrative combinations · {result.frontier.length} Pareto-efficient</Badge>
+        </div>
+      </GlassCard>
+
+      {paretoExpanded && <div className="fixed inset-0 z-[110] grid place-items-center bg-sky-950/45 p-3 backdrop-blur-sm sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setParetoExpanded(false); }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="expanded-pareto-title" className="flex h-[min(92vh,980px)] w-full max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-sky-200 bg-white/95 p-4 shadow-2xl shadow-sky-950/30 sm:p-6 dark:border-sky-800 dark:bg-slate-950/95">
+          <header className="flex shrink-0 items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">Illustrative Simulation · Synthetic Data</p>
+              <h2 id="expanded-pareto-title" className="mt-1 text-xl font-black text-sky-950 dark:text-white sm:text-2xl">{islandName} · Pareto trade-off explorer</h2>
+              <p className="mt-1 text-xs text-sky-700 dark:text-sky-300">Candidate scenarios, Pareto-efficient choices, and the selected balanced equilibrium.</p>
+            </div>
+            <button type="button" onClick={() => setParetoExpanded(false)} aria-label="Close expanded Pareto chart" title="Close expanded chart" autoFocus className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-sky-200 bg-white text-sky-700 transition hover:bg-sky-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-200 dark:hover:bg-slate-800"><Minimize2 size={17} /></button>
+          </header>
+          <div className="mt-3 flex min-h-0 flex-1 items-center justify-center">
+            <div className="h-full min-h-[320px] w-full"><ParetoPlot candidatePoints={candidatePoints} frontierPoints={frontierPoints} equilibriumPoint={equilibriumPoint} colors={colors} expanded /></div>
+          </div>
+          <footer className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-sky-100 pt-3 text-xs dark:border-sky-800">
+            <div className="flex flex-wrap gap-x-4 gap-y-2 font-semibold text-sky-800 dark:text-sky-200"><span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-sky-400" />Candidate</span><span><i className="mr-1 inline-block h-2.5 w-2.5 rotate-45 bg-emerald-500" />Pareto-efficient</span><span><Star size={12} className="mr-1 inline fill-amber-400 text-amber-500" />Balanced equilibrium</span></div>
+            <p className="text-sky-600 dark:text-sky-300">Selected: {fmtInt(result.visitorCap)} visitors · {result.targetALOS.toFixed(2)} nights · {pct1(result.ehi)} EHI</p>
+          </footer>
+        </section>
+      </div>}
+
+      <GlassCard className="p-6">
+        <CardHeader title={`What this means for ${islandName}`} sub="A transparent reading of the synthetic scenario, not a validated operating recommendation." />
+        <p className="mb-4 rounded-xl border border-cyan-200 bg-cyan-50/70 p-4 text-sm leading-relaxed text-sky-900 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-sky-100">
+          The balanced solution pairs <b>{fmtInt(result.visitorCap)} annual visitors</b> with a <b>{result.targetALOS.toFixed(2)}-night stay</b>, yielding <b>{fmtInt(result.economicYield)} tourist-nights</b> at an illustrative EHI of <b>{pct1(result.ehi)}</b>. It trades some visitor-night yield for stronger ecological health instead of choosing the highest-volume candidate.
+        </p>
+        <div className="grid gap-3 md:grid-cols-3">{result.recommendations.map((recommendation, index) => <div key={recommendation} className="rounded-2xl border border-sky-200 bg-white/55 p-4 dark:border-sky-800/60 dark:bg-slate-950/30"><div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-cyan-100 text-cyan-600 dark:bg-cyan-500/15 dark:text-cyan-300">{index === 0 ? <Factory size={17} /> : index === 1 ? <Waves size={17} /> : <Leaf size={17} />}</div><p className="text-sm font-semibold leading-relaxed">{recommendation}</p></div>)}</div>
+      </GlassCard>
+    </div>
+  );
+}
+
+function Stat({ label, value, detail }: { label: string; value: string; detail?: string }) { return <div className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 dark:border-cyan-500/25 dark:bg-cyan-500/10"><p className="text-[10px] font-black uppercase tracking-wide text-cyan-700 dark:text-cyan-300">{label}</p><p className="mt-2 text-xl font-black tabular-nums text-sky-950 dark:text-white">{value}</p>{detail && <p className="mt-2 text-xs leading-relaxed text-sky-800/80 dark:text-sky-100/80">{detail}</p>}</div>; }
 
 function Comparison({ currentName, dna, result }: { currentName: string; dna: TourismDNA; result: IllustrativeResult | null }) {
   const current = { name: currentName, dna, constraint: result ? formatPressure(result.bindingConstraint) : 'Additional data required', cap: result ? fmtInt(result.visitorCap) : '—', alos: result ? `${result.targetALOS.toFixed(2)} nights` : '—', ehi: result ? pct1(result.ehi) : '—', priority: result?.recommendations[0] ?? 'Qualitative profile only', status: result ? 'Illustrative simulation' : 'DNA only' };

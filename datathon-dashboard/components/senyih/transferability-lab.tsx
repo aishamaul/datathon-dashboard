@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, ArrowRight, Database, Expand, Factory, Leaf, Map, Minimize2, RotateCcw, Star, Waves } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ArrowRight, Expand, Factory, Leaf, Minimize2, RotateCcw, Star, Waves } from 'lucide-react';
 import { Cell, Legend, Pie, PieChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from 'recharts';
 import { REPORT_COMPARISON, TRANSFERABILITY_PRESETS, DEFAULT_SUPPORTING_DATA, normaliseTourismDNA, type IslandDemoProfile, type TourismDNA } from '@/lib/data/transferability';
 import { classifyTourismDNA, dominantSector, runIllustrativeAnalysis, type Candidate, type IllustrativeResult, type ScenarioKey } from '@/lib/engine/transferability';
 import { fmtInt, pct1 } from '@/lib/format';
 import { AnalysisOverlay, type PreviewPoint } from './analysis-overlay';
+import { MyPulauMark } from './brand';
 import { Badge, Callout, CardHeader, GlassCard } from './ui';
 import { useChartColors } from './chart-theme';
 
@@ -17,6 +18,12 @@ const DNA_META = [
 ] as const;
 
 const pressureLabels = { marine: 'Reef / Marine', waste: 'Waste / Infrastructure', eco: 'Eco / Terrestrial' } as const;
+const DATA_NEEDS = {
+  marine: ['Reef condition and disturbance records', 'Waste-processing capacity', 'Annual arrivals and average stay'],
+  retail: ['Waste-processing capacity', 'Annual arrivals and average stay', 'Reef condition and disturbance records'],
+  eco: ['Terrestrial site condition and visitor pressure', 'Annual arrivals and average stay', 'Waste-processing capacity'],
+  balanced: ['Annual arrivals and average stay', 'Waste-processing capacity', 'Reef condition and disturbance records'],
+} as const;
 type TradeoffPoint = { x: number; y: number; z: number; kind: 'candidate' | 'frontier' | 'balanced'; visitors: number; alos: number; visitorNights: number; ehi: number };
 const toTradeoffPoint = (point: Candidate, kind: TradeoffPoint['kind']): TradeoffPoint => ({ x: point.yield / 1_000_000, y: point.ehi * 100, z: kind === 'balanced' ? 480 : kind === 'frontier' ? 2 : 1, kind, visitors: point.visitors, alos: point.alos, visitorNights: point.yield, ehi: point.ehi * 100 });
 
@@ -36,6 +43,17 @@ function DnaDonut({ dna, size = 220 }: { dna: TourismDNA; size?: number }) {
   );
 }
 
+function StepHeader({ step, title, sub, badge }: { step: string; title: string; sub: string; badge?: ReactNode }) {
+  return (
+    <div className="mb-5 text-center">
+      <span className="mx-auto inline-grid h-8 w-8 place-items-center rounded-full border border-cyan-300 bg-cyan-50 text-xs font-black text-cyan-800 dark:border-cyan-500/40 dark:bg-cyan-500/10 dark:text-cyan-200">{step}</span>
+      <h3 className="mt-2 text-base font-black tracking-tight text-sky-950 dark:text-sky-50">{title}</h3>
+      <p className="mt-1 text-xs leading-relaxed text-sky-700/75 dark:text-sky-300/70">{sub}</p>
+      {badge && <div className="mt-2">{badge}</div>}
+    </div>
+  );
+}
+
 function formatPressure(key: keyof typeof pressureLabels) { return pressureLabels[key]; }
 
 export function TransferabilityLab() {
@@ -43,17 +61,18 @@ export function TransferabilityLab() {
   const [overlayActive, setOverlayActive] = useState(false);
   const [islandName, setIslandName] = useState('Redang');
   const [selectedPreset, setSelectedPreset] = useState('redang');
-  const [inputMode, setInputMode] = useState<'rooms' | 'percent'>('rooms');
-  const [values, setValues] = useState({ marine: 750, retail: 100, eco: 150 });
+  const [values, setValues] = useState({ marine: 75, retail: 10, eco: 15 });
   const [analysisPhase, setAnalysisPhase] = useState<'editing' | 'results'>('editing');
   const [simulationMode, setSimulationMode] = useState(false);
   const [scenario, setScenario] = useState<ScenarioKey>('current');
 
   const dna = useMemo(() => normaliseTourismDNA(values), [values]);
   const total = values.marine + values.retail + values.eco;
+  const totalIsHundred = Math.abs(total - 100) <= 0.05;
   const isValid = total > 0 && Object.values(values).every((value) => Number.isFinite(value) && value >= 0)
-    && (inputMode === 'rooms' || Math.abs(total - 100) <= 0.01);
+    && totalIsHundred;
   const classification = classifyTourismDNA(dna);
+  const leadSector = dominantSector(dna);
   const activePreset = TRANSFERABILITY_PRESETS.find((preset) => preset.id === selectedPreset);
   const supportingData = activePreset?.supportingData ?? DEFAULT_SUPPORTING_DATA;
   const analysisRequested = simulationMode || overlayActive;
@@ -89,7 +108,7 @@ export function TransferabilityLab() {
     setValues((current) => ({ ...current, [key]: Math.max(0, Number(value) || 0) }));
   };
   const choosePreset = (preset: IslandDemoProfile) => {
-    setSelectedPreset(preset.id); setIslandName(preset.name); setInputMode('percent'); setValues({ marine: preset.tourismDNA.marine * 100, retail: preset.tourismDNA.retail * 100, eco: preset.tourismDNA.eco * 100 }); setAnalysisPhase('editing'); setSimulationMode(false);
+    setSelectedPreset(preset.id); setIslandName(preset.name); setValues({ marine: +(preset.tourismDNA.marine * 100).toFixed(2), retail: +(preset.tourismDNA.retail * 100).toFixed(2), eco: +(preset.tourismDNA.eco * 100).toFixed(2) }); setAnalysisPhase('editing'); setSimulationMode(false);
   };
   const completeOverlay = () => {
     setSimulationMode(true);
@@ -108,22 +127,22 @@ export function TransferabilityLab() {
   return <div className="space-y-5 text-sky-950 dark:text-sky-50">
     {overlayActive && <AnalysisOverlay islandName={islandName} dna={dna} points={previewPoints} onComplete={completeOverlay} />}
     <section className="senyih-fade overflow-hidden rounded-[2rem] border border-cyan-200/70 bg-white/55 p-6 shadow-xl shadow-cyan-900/5 backdrop-blur-xl md:p-9 dark:border-cyan-400/15 dark:bg-slate-900/55">
-      <div className="mb-5 flex items-center gap-3" aria-label="Malaysia branding">
+      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="MY Pulau solution">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-700 dark:text-sky-300">Malaysia · DOSM Datathon 2026</p>
       </div>
       <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-        <div><h2 className="mt-4 max-w-2xl text-4xl font-black tracking-tight text-sky-950 dark:text-white md:text-5xl">Fix <span className="bg-cover bg-center bg-clip-text text-transparent" style={{ backgroundImage: "url('/malaysia.jpg')", WebkitBackgroundClip: 'text' }}>MY</span> Island.</h2><p className="mt-4 max-w-xl text-sm leading-relaxed text-sky-800/80 dark:text-sky-200/75">Watch one reusable decision-making framework adapt to a new island profile. Tourism DNA is a starting structure, not a substitute for island-specific evidence.</p><div className="mt-6 flex flex-wrap gap-3"><div className="rounded-2xl border border-sky-200 bg-white/70 px-4 py-3 dark:border-sky-800/60 dark:bg-slate-950/40"><p className="text-[10px] font-black uppercase tracking-widest text-sky-500">Shared architecture</p><p className="mt-1 text-sm font-bold">DNA → pressure → scenarios</p></div><div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 dark:border-emerald-500/30 dark:bg-emerald-500/10"><p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Scientific boundary</p><p className="mt-1 text-sm font-bold">DNA informs. Evidence sets targets</p></div></div></div>
-        <div className="relative rounded-[1.75rem] border border-cyan-200/70 bg-gradient-to-br from-cyan-500/15 via-white/50 to-emerald-400/10 p-6 dark:border-cyan-400/20 dark:from-cyan-400/10 dark:via-slate-900/30"><div className="absolute inset-x-10 top-1/2 h-px bg-gradient-to-r from-cyan-300/0 via-cyan-400 to-emerald-400/0" /><div className="relative flex items-center justify-center gap-3 sm:gap-8"><div className="grid h-16 w-16 place-items-center rounded-2xl bg-cyan-500 text-white shadow-lg shadow-cyan-500/30"><Waves size={28} /></div><ArrowRight className="text-cyan-500 motion-safe:animate-pulse" /><div className="grid h-16 w-16 place-items-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"><Leaf size={28} /></div><ArrowRight className="text-emerald-500 motion-safe:animate-pulse" /><div className="grid h-16 w-16 place-items-center rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/30"><Factory size={28} /></div></div><p className="relative mt-5 text-center text-xs font-bold text-sky-700 dark:text-sky-200">Same framework ≠ same recommendation</p></div>
+        <div><h2 className="mt-4 max-w-2xl text-4xl font-black tracking-tight text-sky-950 dark:text-white md:text-5xl">Colour <span className="bg-cover bg-center bg-clip-text text-transparent" style={{ backgroundImage: "url('/malaysia.jpg')", WebkitBackgroundClip: 'text' }}>MY</span> Island, Majukan Negara.</h2><p className="mt-4 max-w-xl text-sm leading-relaxed text-sky-800/80 dark:text-sky-200/75">Watch one reusable decision-making framework adapt to a new island profile. Tourism DNA is a starting structure, not a substitute for island-specific evidence.</p><div className="mt-6 flex flex-wrap gap-3"><div className="rounded-2xl border border-sky-200 bg-white/70 px-4 py-3 dark:border-sky-800/60 dark:bg-slate-950/40"><p className="text-[10px] font-black uppercase tracking-widest text-sky-500">Shared architecture</p><p className="mt-1 text-sm font-bold">DNA → pressure → scenarios</p></div><div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 dark:border-emerald-500/30 dark:bg-emerald-500/10"><p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Scientific boundary</p><p className="mt-1 text-sm font-bold">DNA informs. Evidence sets targets</p></div></div></div>
+        <div className="relative rounded-[1.75rem] border border-cyan-200/70 bg-gradient-to-br from-cyan-500/15 via-white/50 to-emerald-400/10 p-6 dark:border-cyan-400/20 dark:from-cyan-400/10 dark:via-slate-900/30"><div className="absolute inset-x-10 top-1/2 h-px bg-gradient-to-r from-cyan-300/0 via-cyan-400 to-emerald-400/0" /><div className="relative flex items-center justify-center gap-3 sm:gap-8"><div className="grid h-16 w-16 place-items-center rounded-2xl bg-cyan-500 text-white shadow-lg shadow-cyan-500/30"><Waves size={28} /></div><ArrowRight className="text-cyan-500 motion-safe:animate-pulse" /><div className="grid h-16 w-16 place-items-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"><Leaf size={28} /></div><ArrowRight className="text-emerald-500 motion-safe:animate-pulse" /><div className="grid h-16 w-16 place-items-center rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/30"><Factory size={28} /></div></div><p className="relative mt-5 text-center text-xs font-bold text-sky-700 dark:text-sky-200">Same framework ≠ Same recommendation</p></div>
       </div>
     </section>
 
     <div className="grid gap-5 xl:grid-cols-[0.86fr_1.14fr]">
-      <GlassCard className="p-6"><CardHeader title="01 · Choose or create an island" sub="Every preset is synthetic illustrative demo data." />
+      <GlassCard className="p-6"><StepHeader step="01" title="Choose or create an island" sub="Every preset is synthetic illustrative demo data." badge={<Badge tone="amber">ILLUSTRATIVE DEMO DATA</Badge>} />
         <div className="grid grid-cols-3 gap-2">{TRANSFERABILITY_PRESETS.map((preset) => <button key={preset.id} type="button" onClick={() => choosePreset(preset)} className={`rounded-2xl border p-3 text-left transition ${selectedPreset === preset.id ? 'border-cyan-400 bg-cyan-50 shadow-sm dark:border-cyan-400/60 dark:bg-cyan-500/10' : 'border-sky-200 bg-white/50 hover:border-cyan-300 dark:border-sky-800/70 dark:bg-slate-900/30'}`}><span className="block text-sm font-black">{preset.name}</span><span className="mt-1 block text-[10px] font-bold text-cyan-600">Illustrative</span></button>)}</div>
         <label className="mt-5 block text-xs font-bold text-sky-700 dark:text-sky-200" htmlFor="island-name">Island name</label><div className="mt-2 flex gap-2"><input id="island-name" value={islandName} onChange={(event) => { setIslandName(event.target.value); setSelectedPreset('custom'); setAnalysisPhase('editing'); setSimulationMode(false); }} className="min-w-0 flex-1 rounded-xl border border-sky-200 bg-white/80 px-3 py-2 text-sm font-bold outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200 dark:border-sky-800 dark:bg-slate-950/40" placeholder="Enter an island name" /><button type="button" onClick={reset} aria-label="Reset island profile" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-sky-200 text-sky-600 hover:bg-sky-50 dark:border-sky-800 dark:hover:bg-slate-800"><RotateCcw size={16} /></button></div>
-        <div className="mt-6 flex items-center justify-between gap-3"><div><p className="text-sm font-black">Tourism DNA inputs</p><p className="text-xs text-sky-700/70 dark:text-sky-300/70">{inputMode === 'rooms' ? 'Room counts are automatically L1-normalised.' : 'Percentages are shown as entered.'}</p></div><div className="flex rounded-xl border border-sky-200 bg-white/60 p-1 text-xs font-bold dark:border-sky-800 dark:bg-slate-950/40"><button type="button" onClick={() => setInputMode('rooms')} className={`rounded-lg px-2 py-1 ${inputMode === 'rooms' ? 'bg-sky-500 text-white' : 'text-sky-700 dark:text-sky-200'}`}>Rooms</button><button type="button" onClick={() => setInputMode('percent')} className={`rounded-lg px-2 py-1 ${inputMode === 'percent' ? 'bg-sky-500 text-white' : 'text-sky-700 dark:text-sky-200'}`}>Percent</button></div></div>
-        <div className="mt-4 space-y-4">{DNA_META.map((item) => <div key={item.key} className={`rounded-2xl border p-3 ${item.soft}`}><div className="flex items-center justify-between gap-3"><label htmlFor={`dna-${item.key}`} className="flex items-center gap-2 text-sm font-bold"><span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />{item.label}</label><div className="flex items-center gap-1"><input id={`dna-${item.key}`} type="number" min="0" step="1" value={values[item.key]} onChange={(event) => updateValue(item.key, event.target.value)} className="w-20 rounded-lg border border-white/80 bg-white/80 px-2 py-1 text-right text-sm font-black outline-none dark:border-slate-700 dark:bg-slate-950/40" /><span className="text-xs font-bold text-sky-600 dark:text-sky-300">{inputMode === 'rooms' ? 'rooms' : '%'}</span></div></div><input type="range" min="0" max={inputMode === 'rooms' ? 2000 : 100} step="1" value={values[item.key]} onChange={(event) => updateValue(item.key, event.target.value)} className="senyih-range mt-3 w-full" style={{ '--fill': `${Math.min(100, values[item.key] / (inputMode === 'rooms' ? 20 : 1))}%` } as React.CSSProperties} /></div>)}</div>
-        {inputMode === 'percent' && Math.abs(total - 100) > 0.01 && <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"><span>Inputs total {total.toFixed(1)}%. Normalise before analysing.</span><button type="button" onClick={normalisePercentages} className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 font-black text-white">Normalise to 100%</button></div>}
+        <div className="mt-6 flex items-end justify-between gap-3"><div><p className="text-sm font-black">Tourism DNA inputs</p><p className="text-xs text-sky-700/70 dark:text-sky-300/70">Enter each sector&apos;s share as a percentage or ratio, then normalise to 100%.</p></div><span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black tabular-nums ${totalIsHundred ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200' : 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100'}`}>Total {total.toFixed(1)}%</span></div>
+        <div className="mt-4 space-y-4">{DNA_META.map((item) => <div key={item.key} className={`rounded-2xl border p-3 ${item.soft}`}><div className="flex items-center justify-between gap-3"><label htmlFor={`dna-${item.key}`} className="flex items-center gap-2 text-sm font-bold"><span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />{item.label}</label><div className="flex items-center gap-1"><input id={`dna-${item.key}`} type="number" min="0" step="0.1" value={values[item.key]} onChange={(event) => updateValue(item.key, event.target.value)} className="w-20 rounded-lg border border-white/80 bg-white/80 px-2 py-1 text-right text-sm font-black outline-none dark:border-slate-700 dark:bg-slate-950/40" /><span className="text-xs font-bold text-sky-600 dark:text-sky-300">%</span></div></div><input type="range" min="0" max="100" step="1" value={Math.min(100, values[item.key])} onChange={(event) => updateValue(item.key, event.target.value)} className="senyih-range mt-3 w-full" aria-label={`${item.label} share`} style={{ '--fill': `${Math.min(100, values[item.key])}%` } as React.CSSProperties} /></div>)}</div>
+        {!totalIsHundred && <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"><span>Inputs total {total.toFixed(1)}%. Normalise them into a 100% profile before analysing.</span><button type="button" onClick={normalisePercentages} className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 font-black text-white">Normalise to 100%</button></div>}
         <details className="mt-5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
           <summary className="cursor-pointer font-black">Illustrative Simulation — Synthetic Data · Review assumptions</summary>
           <p className="mt-2 leading-relaxed">The demo uses invented island support assumptions, not observed statistics or validated model outputs. Current preset/custom assumptions: peak arrivals {fmtInt(supportingData.historicalPeakArrivals)}, baseline stay {supportingData.baselineALOS.toFixed(1)} nights, waste capacity {fmtInt(supportingData.annualWasteCapacityTonnes)} tonnes/year, coral cover {pct1(supportingData.baselineLiveCoralCover)}, and baseline disturbance {pct1(supportingData.baselineDisturbance)}. Custom island names use a transparent generic synthetic profile.</p>
@@ -131,13 +150,38 @@ export function TransferabilityLab() {
         <button type="button" disabled={!isValid || !islandName.trim()} onClick={analyse} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-teal-500 px-4 py-3 text-sm font-black text-white shadow-lg shadow-cyan-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50">Analyse Island with Demo Data <ArrowRight size={17} /></button>
       </GlassCard>
 
-      <GlassCard className="p-6"><CardHeader title="02 · Island sustainability passport" sub="Live accommodation-derived profile. Tourism structure is not an ecological health score." right={<Badge tone="teal">LIVE PROFILE</Badge>} /><div className="grid items-center gap-5 sm:grid-cols-[240px_1fr]"><DnaDonut dna={dna} /><div><p className="text-2xl font-black text-sky-950 dark:text-white">{classification}</p><p className="mt-2 text-sm leading-relaxed text-sky-700/80 dark:text-sky-200/75">{dominantSector(dna) === 'marine' ? 'This marine-oriented structure suggests reef monitoring and disturbance data will be important to assess.' : dominantSector(dna) === 'retail' ? 'This retail-oriented structure suggests waste capacity and visitor-night data will be important to assess.' : dominantSector(dna) === 'eco' ? 'This eco-oriented structure suggests terrestrial site condition and visitor pressure data will be important to assess.' : 'This balanced structure suggests checking pressures across all three sectors.'} Actual ecological health requires destination-specific evidence.</p><div className="mt-5 space-y-2">{DNA_META.map((item) => <div key={item.key} className="flex items-center justify-between text-sm"><span className="flex items-center gap-2 font-semibold"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />{item.short}</span><span className="font-black tabular-nums">{pct1(dna[item.key])}</span></div>)}</div></div></div></GlassCard>
+      <GlassCard className="flex flex-col p-6">
+        <StepHeader step="02" title="Island sustainability passport" sub="Live accommodation-derived profile. Tourism structure is not an ecological health score." badge={<Badge tone="teal">LIVE PROFILE</Badge>} />
+        <div className="flex flex-1 flex-col justify-evenly gap-5">
+          <div className="grid items-center gap-5 sm:grid-cols-[240px_1fr]">
+            <div>
+              <DnaDonut dna={dna} />
+              <div className="mx-auto mt-2 max-w-[220px] rounded-xl border border-cyan-200/80 bg-cyan-50/70 px-3 py-2 text-center dark:border-cyan-500/25 dark:bg-cyan-500/10">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-cyan-700 dark:text-cyan-300">Leading tourism sector</p>
+                <p className="mt-0.5 text-sm font-black text-sky-950 dark:text-sky-50">
+                  {leadSector === 'balanced' ? 'Balanced profile' : `${DNA_META.find((item) => item.key === leadSector)?.short} · ${pct1(dna[leadSector])}`}
+                </p>
+              </div>
+            </div>
+            <div>
+              <p className="text-2xl font-black text-sky-950 dark:text-white">{classification}</p>
+              <p className="mt-2 text-sm leading-relaxed text-sky-700/80 dark:text-sky-200/75">{leadSector === 'marine' ? 'This marine-oriented structure suggests reef monitoring and disturbance data will be important to assess.' : leadSector === 'retail' ? 'This retail-oriented structure suggests waste capacity and visitor-night data will be important to assess.' : leadSector === 'eco' ? 'This eco-oriented structure suggests terrestrial site condition and visitor pressure data will be important to assess.' : 'This balanced structure suggests checking pressures across all three sectors.'} Actual ecological health requires destination-specific evidence.</p>
+              <div className="mt-5 space-y-2">{DNA_META.map((item) => <div key={item.key} className="flex items-center justify-between text-sm"><span className="flex items-center gap-2 font-semibold"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />{item.short}</span><span className="font-black tabular-nums">{pct1(dna[item.key])}</span></div>)}</div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-sky-200 bg-white/60 p-4 dark:border-sky-800/60 dark:bg-slate-950/30">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300">Data to collect for quantitative targets</p>
+            <ul className="mt-2 grid gap-2 sm:grid-cols-3">
+              {DATA_NEEDS[leadSector].map((need, index) => <li key={need} className={`rounded-xl border px-3 py-2 text-xs font-semibold leading-snug ${index === 0 ? 'border-cyan-300 bg-cyan-50 text-cyan-900 dark:border-cyan-500/40 dark:bg-cyan-500/10 dark:text-cyan-100' : 'border-sky-200 bg-white/70 text-sky-800 dark:border-sky-800/60 dark:bg-slate-900/40 dark:text-sky-200'}`}>{index === 0 && <span className="mb-0.5 block text-[9px] font-black uppercase tracking-wider opacity-70">Priority</span>}{need}</li>)}
+            </ul>
+          </div>
+        </div>
+      </GlassCard>
     </div>
 
     {analysisPhase === 'results' && result && <div ref={journeyRef} className="senyih-fade scroll-mt-24 space-y-5">
       <SimulationResults result={result} dna={dna} islandName={islandName} scenario={scenario} onScenarioChange={setScenario} candidatePoints={candidatePoints} frontierPoints={frontierPoints} equilibriumPoint={equilibriumPoint} radarData={radarData} />
       <Comparison currentName={islandName || 'New Island'} dna={dna} result={result} />
-      <section className="overflow-hidden rounded-[2rem] border border-sky-800/20 bg-gradient-to-br from-sky-950 via-cyan-950 to-emerald-950 p-7 text-white shadow-2xl md:p-10"><p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">The scalable idea</p><h2 className="mt-3 text-3xl font-black tracking-tight md:text-5xl">ONE FRAMEWORK. EVERY ISLAND.</h2><h3 className="mt-2 text-2xl font-black text-amber-300 md:text-3xl">All We Need Is Data.</h3><p className="mt-5 max-w-3xl text-sm leading-relaxed text-sky-100/80">From Langkawi to Tioman and beyond, the analytical architecture can adapt to new destinations. Different data enters the same framework and produces island-specific recommendations.</p><div className="mt-8 grid gap-3 md:grid-cols-3"><div className="rounded-2xl border border-white/15 bg-white/10 p-4"><Map size={20} className="text-cyan-300" /><p className="mt-3 font-black">Tourism Structure</p><p className="mt-1 text-xs text-sky-100/70">Accommodation room counts by tourism category.</p></div><div className="rounded-2xl border border-white/15 bg-white/10 p-4"><Activity size={20} className="text-amber-300" /><p className="mt-3 font-black">Visitor Activity</p><p className="mt-1 text-xs text-sky-100/70">Historical annual arrivals and average length of stay.</p></div><div className="rounded-2xl border border-white/15 bg-white/10 p-4"><Database size={20} className="text-emerald-300" /><p className="mt-3 font-black">Environment & infrastructure</p><p className="mt-1 text-xs text-sky-100/70">Reef condition, disturbance and waste-processing capacity.</p></div></div><p className="mt-8 text-lg font-black text-white md:text-xl">We are not transferring Langkawi&apos;s numbers. We are transferring the decision-making framework.</p></section>
     </div>}
   </div>;
 }

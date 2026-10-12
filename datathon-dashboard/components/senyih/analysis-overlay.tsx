@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, X } from 'lucide-react';
 import type { TourismDNA } from '@/lib/data/transferability';
+import { MyPulauMark } from './brand';
 
 export type PreviewPoint = { x: number; y: number; kind: 'candidate' | 'frontier' | 'balanced' };
 
@@ -163,7 +164,7 @@ export function AnalysisOverlay({ islandName, dna, points, onComplete }: {
       <div className="transfer-panel relative my-auto w-full max-w-5xl rounded-[2rem] border border-sky-200/90 bg-gradient-to-br from-white/95 via-sky-50/95 to-cyan-50/95 p-5 text-sky-950 shadow-[0_24px_90px_rgba(8,47,73,0.28)] md:p-8">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-700">Shared Framework · Illustrative Workflow</p>
+            <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-700"><MyPulauMark size="sm" className="normal-case tracking-tight" /><span aria-hidden="true">·</span>Illustrative Workflow</p>
             <h2 className="mt-1 text-3xl font-black tracking-tight md:text-4xl">{islandName}</h2>
             <span className="mt-2 inline-flex rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-900">
               Illustrative Simulation — Synthetic Data

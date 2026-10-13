@@ -16,7 +16,7 @@ const LANES = [
 type Timeline = { cards: number; flowIn: number; flowOut: number; scan: number; pareto: number; lock: number; ready: number; total: number };
 
 // Milliseconds from overlay start; Infinity marks stages that do not exist in a mode.
-const TIMELINE: Timeline = { cards: 250, flowIn: 700, flowOut: 1500, scan: 1900, pareto: 3000, lock: 3300, ready: 3550, total: 3950 };
+const TIMELINE: Timeline = { cards: 170, flowIn: 480, flowOut: 1020, scan: 1300, pareto: 2050, lock: 2250, ready: 2420, total: 2700 };
 const STAGE_LABELS = ['Loading synthetic data', 'Evaluating pressures', 'Exploring scenarios', 'Generating insights'];
 
 const ease = (x: number) => 1 - (1 - x) ** 3;
@@ -35,11 +35,11 @@ function buildLog(name: string, dna: TourismDNA) {
   return [
     { at: 0, text: `read island profile · ${name} · marine ${pct(dna.marine)} · retail ${pct(dna.retail)} · eco ${pct(dna.eco)}` },
     { at: 0, text: 'load illustrative supporting dataset (synthetic)' },
-    { at: 700, text: 'evaluate reef disturbance, waste capacity and terrestrial pressure assumptions' },
-    { at: 1900, text: 'scan candidate arrivals × ALOS combinations' },
-    { at: 3000, text: 'identify Pareto-efficient scenarios' },
-    { at: 3300, text: 'lock balanced illustrative solution' },
-    { at: 3550, text: 'prepare illustrative insights' },
+    { at: 480, text: 'evaluate reef disturbance, waste capacity and terrestrial pressure assumptions' },
+    { at: 1300, text: 'scan candidate arrivals × ALOS combinations' },
+    { at: 2050, text: 'identify Pareto-efficient scenarios' },
+    { at: 2250, text: 'lock balanced illustrative solution' },
+    { at: 2420, text: 'prepare illustrative insights' },
   ];
 }
 
@@ -48,9 +48,9 @@ const STATUS_TEXT: Record<Status, string> = { waiting: 'waiting', evaluating: 'e
 
 function pillarStatus(t: number, tl: Timeline, index: number): Status {
   if (t >= tl.ready) return 'ready';
-  const start = tl.flowOut + index * 220;
+  const start = tl.flowOut + index * 160;
   if (t < start) return 'waiting';
-  return t < start + 500 ? 'evaluating' : 'mapped';
+  return t < start + 360 ? 'evaluating' : 'mapped';
 }
 
 function starPath(cx: number, cy: number, outer: number, inner: number) {
@@ -87,13 +87,13 @@ function ScenarioSweep({ t, tl, points }: { t: number; tl: Timeline; points: Pre
         <text x={(x0 + x1) / 2} y="204" fontSize="8" textAnchor="middle" fill="#0369a1" opacity="0.82">Economic yield (visitor-nights) →</text>
         <text x="9" y={(y0 + y1) / 2} fontSize="8" textAnchor="middle" fill="#0369a1" opacity="0.82" transform={`rotate(-90 9 ${(y0 + y1) / 2})`}>Illustrative EHI →</text>
 
-        {candidates.map((p, i) => t >= tl.scan + (i / Math.max(1, candidates.length)) * 1000 && (
+        {candidates.map((p, i) => t >= tl.scan + (i / Math.max(1, candidates.length)) * 700 && (
           <circle key={`c${i}`} cx={px(p.x)} cy={py(p.y)} r="2.2" fill="#38bdf8" className="transfer-pop" />
         ))}
         {t >= tl.pareto && frontier.length > 1 && (
           <polyline points={frontier.map((p) => `${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(' ')} fill="none" stroke="#34d399" strokeWidth="1.5" strokeOpacity="0.8" pathLength={1} className="transfer-trace" />
         )}
-        {frontier.map((p, i) => t >= tl.pareto + i * 25 && (
+        {frontier.map((p, i) => t >= tl.pareto + i * 12 && (
           <rect key={`f${i}`} x={px(p.x) - 2.6} y={py(p.y) - 2.6} width="5.2" height="5.2" fill="#34d399" transform={`rotate(45 ${px(p.x)} ${py(p.y)})`} className="transfer-pop" />
         ))}
         {balanced && locked && (
@@ -210,10 +210,10 @@ export function AnalysisOverlay({ islandName, dna, points, onComplete }: {
             {LANES.map((lane, i) => {
               const inPath = `M112 ${lane.y} C 200 ${lane.y}, 210 170, 262 170`;
               const outPath = `M338 170 C 390 170, 400 ${lane.y}, 488 ${lane.y}`;
-              const cardP = ease(span(t, tl.cards + i * 180, 450));
-              const countP = ease(span(t, tl.cards + i * 180 + 120, 800));
-              const inLive = t >= tl.flowIn + i * 220;
-              const outLive = t >= tl.flowOut + i * 220;
+              const cardP = ease(span(t, tl.cards + i * 130, 330));
+              const countP = ease(span(t, tl.cards + i * 130 + 90, 580));
+              const inLive = t >= tl.flowIn + i * 160;
+              const outLive = t >= tl.flowOut + i * 160;
               const status = pillarStatus(t, tl, i);
               const glow = (on: boolean) => ({ opacity: on ? 1 : 0, transition: 'opacity 0.5s', filter: on ? `drop-shadow(0 0 5px ${lane.color})` : 'none' });
               return (

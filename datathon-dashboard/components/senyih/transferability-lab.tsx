@@ -212,7 +212,7 @@ export function TransferabilityLab() {
 
       <GlassCard className="relative flex flex-col p-6 xl:sticky xl:top-24 xl:self-start">
         <span aria-hidden="true" className="absolute -top-[27px] left-1/2 z-10 grid h-8 w-8 -translate-x-1/2 place-items-center rounded-full bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 xl:-left-[27px] xl:top-24 xl:translate-x-0"><ArrowRight size={16} className="rotate-90 xl:rotate-0" /></span>
-        <StepHeader step="02" title="Island sustainability passport" sub="Output of step 01: built live from the sector shares and evidence on the left. Tourism structure is not an ecological health score." badge={<Badge tone="teal">LIVE PROFILE</Badge>} />
+        <StepHeader step="02" title="Tourism DNA" sub="Output of step 01: built live from the sector shares and evidence on the left. Tourism structure is not an ecological health score." badge={<Badge tone="teal">LIVE PROFILE</Badge>} />
         <div className="flex flex-col gap-5">
           <div className="grid items-center gap-5 sm:grid-cols-[240px_1fr]">
             <div>

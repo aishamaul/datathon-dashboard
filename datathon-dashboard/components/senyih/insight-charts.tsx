@@ -447,7 +447,7 @@ export function CoralChangeCard({ coral }: { coral: CoralChangeResult }) {
       <CardHeader
         title="Sustainability · Live coral cover change"
         sub={`${span}-year net change in live coral cover, ${coral.firstYear}–${coral.lastYear} (first to last survey)`}
-        right={proxy ? <Badge tone="teal">{proxyShort} {proxy.z >= 0 ? '+' : '−'}{Math.abs(proxy.z).toFixed(2)} SD</Badge> : <Badge tone="teal">SDG 14</Badge>}
+        right={<Badge tone="teal">SDG 14</Badge>}
       />
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">

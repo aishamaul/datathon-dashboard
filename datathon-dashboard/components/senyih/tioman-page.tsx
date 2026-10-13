@@ -80,7 +80,7 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
         <div className="xl:col-span-7 space-y-5">
           <GlassCard className="p-6">
             <CardHeader
-              title="Chart 3 · The disturbance regression"
+              title="Marine · The disturbance regression"
               sub={`Pooled Ridge: live coral cover ~ disturbance + island fixed effects · ${marine.rows.length} island-year surveys · α = ${marine.alpha}`}
               right={<Badge tone="teal">SDG 14</Badge>}
             />
@@ -259,8 +259,7 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
 
       <Callout tone="sky" title="What the regression shows">
         Disturbance explains {fmt1(marine.r2 * 100)}% of variance in live coral cover (coefficient {marine.disturbanceCoef.toFixed(2)} per unit of
-        disturbance). Model LOO MAE is {marine.looMae.toFixed(3)} vs baseline {marine.baselineMae.toFixed(3)} ({fmt1(marine.skillPct)}% skill
-        better than baseline). Visitors operate through disturbance, not directly.
+        disturbance). Visitors operate through disturbance, not directly.
       </Callout>
     </div>
   );

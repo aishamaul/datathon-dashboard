@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Expand, Minimize2 } from 'lucide-react';
 import {
   Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Label, LabelList, Legend, Line, LineChart,
   ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis,
@@ -340,6 +341,7 @@ function milestoneLabel(viewBox: unknown, text: string, color: string) {
 
 export function CatalystCard({ catalyst }: { catalyst: CatalystResult }) {
   const c = useChartColors();
+  const [expanded, setExpanded] = useState(false);
   const { points, milestones, test } = catalyst;
   const axis = useMemo(() => {
     const values = points.map((p) => p.alos);
@@ -349,42 +351,68 @@ export function CatalystCard({ catalyst }: { catalyst: CatalystResult }) {
   const significant = test !== null && test.p < 0.05;
   const changePct = test ? (test.mean2 / test.mean1 - 1) * 100 : 0;
 
+  useEffect(() => {
+    if (!expanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [expanded]);
+
+  const renderChart = (isExpanded: boolean) => (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={points} margin={isExpanded ? { top: 12, right: 24, left: 8, bottom: 32 } : { top: 10, right: 16, left: 4, bottom: 22 }}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={c.grid} />
+        <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: isExpanded ? 14 : 12 }} dy={8}>
+          <Label value="Year" position="insideBottom" offset={-14} fill={c.tickX} fontSize={isExpanded ? 14 : 12} />
+        </XAxis>
+        <YAxis
+          width={isExpanded ? 76 : 64} axisLine={false} tickLine={false} tick={{ fill: c.tickLeft, fontSize: isExpanded ? 14 : 12 }}
+          domain={axis.domain} ticks={axis.ticks} tickFormatter={(v: number) => v.toFixed(axis.decimals)}
+        >
+          <Label value="Average length of stay (nights)" angle={-90} position="insideLeft" offset={10} fill={c.tickLeft} fontSize={isExpanded ? 14 : 12} style={{ textAnchor: 'middle' }} />
+        </YAxis>
+        <Tooltip
+          {...c.tooltip}
+          cursor={{ stroke: c.refLine, strokeWidth: 1 }}
+          formatter={(v) => (typeof v === 'number' ? `${fmt2(v)} nights` : String(v))}
+        />
+        {milestones.map((m) => (
+          <ReferenceLine key={m.year} x={m.year} stroke={c.rose} strokeDasharray="4 4" strokeWidth={1.5}>
+            {!isExpanded && <Label content={(props) => milestoneLabel(props.viewBox, m.label, c.roseText)} />}
+          </ReferenceLine>
+        ))}
+        <Line
+          type="monotone" dataKey="alos" name="Average length of stay" stroke={c.ringText} strokeWidth={3}
+          dot={{ r: isExpanded ? 5 : 4, fill: c.ringText, stroke: c.ringText }} activeDot={{ r: 7 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+
   return (
-    <GlassCard className="p-6">
+    <>
+      <GlassCard className="p-6">
       <CardHeader
         title="Policy · Langkawi policy catalyst"
         sub={`Average length of stay with policy milestones, ${points[0].year}–${points[points.length - 1].year}`}
-        right={<Badge tone="sky">SDG 9</Badge>}
+        right={
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge tone="sky">SDG 9</Badge>
+            <button type="button" onClick={() => setExpanded(true)} aria-label="Expand policy catalyst chart" title="Expand chart" className="grid h-9 w-9 place-items-center rounded-lg border border-sky-200 bg-white/70 text-sky-700 transition hover:border-cyan-400 hover:bg-cyan-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-800 dark:bg-slate-900/70 dark:text-sky-200 dark:hover:bg-slate-800">
+              <Expand size={16} />
+            </button>
+          </div>
+        }
       />
       <div className="h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={points} margin={{ top: 10, right: 16, left: 4, bottom: 22 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={c.grid} />
-            <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }} dy={8}>
-              <Label value="Year" position="insideBottom" offset={-14} fill={c.tickX} fontSize={12} />
-            </XAxis>
-            <YAxis
-              width={64} axisLine={false} tickLine={false} tick={{ fill: c.tickLeft, fontSize: 12 }}
-              domain={axis.domain} ticks={axis.ticks} tickFormatter={(v: number) => v.toFixed(axis.decimals)}
-            >
-              <Label value="Average length of stay (nights)" angle={-90} position="insideLeft" offset={10} fill={c.tickLeft} fontSize={12} style={{ textAnchor: 'middle' }} />
-            </YAxis>
-            <Tooltip
-              {...c.tooltip}
-              cursor={{ stroke: c.refLine, strokeWidth: 1 }}
-              formatter={(v) => (typeof v === 'number' ? `${fmt2(v)} nights` : String(v))}
-            />
-            {milestones.map((m) => (
-              <ReferenceLine key={m.year} x={m.year} stroke={c.rose} strokeDasharray="4 4" strokeWidth={1.5}>
-                <Label content={(props) => milestoneLabel(props.viewBox, m.label, c.roseText)} />
-              </ReferenceLine>
-            ))}
-            <Line
-              type="monotone" dataKey="alos" name="Average length of stay" stroke={c.ringText} strokeWidth={3}
-              dot={{ r: 4, fill: c.ringText, stroke: c.ringText }} activeDot={{ r: 6 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        {renderChart(false)}
       </div>
       {test ? (
         <>
@@ -405,7 +433,32 @@ export function CatalystCard({ catalyst }: { catalyst: CatalystResult }) {
           The before/after test needs at least two years on each side of {catalyst.blueprintYear}.
         </p>
       )}
-    </GlassCard>
+      </GlassCard>
+      {expanded && (
+        <div className="fixed inset-0 z-[110] grid place-items-center bg-sky-950/45 p-3 backdrop-blur-sm sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setExpanded(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="expanded-catalyst-title" className="flex h-[min(92vh,980px)] w-full max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-sky-200 bg-white/95 p-4 shadow-2xl shadow-sky-950/30 sm:p-6 dark:border-sky-800 dark:bg-slate-950/95">
+            <header className="flex shrink-0 items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">Policy · Langkawi</p>
+                <h2 id="expanded-catalyst-title" className="mt-1 text-xl font-black text-sky-950 dark:text-white sm:text-2xl">Policy catalyst · Average length of stay</h2>
+                <p className="mt-1 text-xs text-sky-700 dark:text-sky-300">Policy milestones and average stay, {points[0].year}–{points[points.length - 1].year}</p>
+              </div>
+              <button type="button" onClick={() => setExpanded(false)} aria-label="Close expanded policy catalyst chart" title="Close expanded chart" autoFocus className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-sky-200 bg-white text-sky-700 transition hover:bg-sky-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-200 dark:hover:bg-slate-800"><Minimize2 size={17} /></button>
+            </header>
+            <div className="mt-4 grid shrink-0 gap-2 border-y border-sky-100 py-3 dark:border-sky-800 sm:grid-cols-3" aria-label="Policy milestones">
+              {milestones.map((milestone) => (
+                <div key={milestone.year} className="flex items-center gap-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
+                  <span className="h-0.5 w-5 shrink-0 bg-rose-500" aria-hidden="true" />
+                  <span className="text-rose-700 dark:text-rose-300">{milestone.year}</span>
+                  <span>{milestone.label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 min-h-0 flex-1">{renderChart(true)}</div>
+          </section>
+        </div>
+      )}
+    </>
   );
 }
 

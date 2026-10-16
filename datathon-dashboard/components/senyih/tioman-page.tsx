@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Expand, Minimize2 } from 'lucide-react';
 import {
   Bar, BarChart, CartesianGrid, Cell, ComposedChart, Label, Legend, Line, ReferenceLine,
   ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis,
@@ -22,6 +23,8 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
   const { marine } = analysis;
   const { setup, scenarios } = analysis.islands.Tioman;
   const [levelIdx, setLevelIdx] = useState(1); // start on "Current"
+  const [regressionExpanded, setRegressionExpanded] = useState(false);
+  const [selectedIsland, setSelectedIsland] = useState(setup.proxyReef);
   const level: ScenarioKey = SCENARIOS[levelIdx].key;
 
   // Real re-run of the search each time the level changes
@@ -47,6 +50,78 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
       line: [xMin, xMax].map((x) => ({ x, y: predictLcc(marine, x / 100, island) * 100 })),
     }));
   }, [marine, setup.proxyReef, c]);
+
+  useEffect(() => {
+    if (!regressionExpanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setRegressionExpanded(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [regressionExpanded]);
+
+  const renderRegressionChart = (expanded: boolean) => {
+    const selectedSeries = chart.find((series) => series.island === selectedIsland) ?? chart[0];
+    const visibleSeries = expanded ? (selectedSeries ? [selectedSeries] : []) : chart;
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart margin={expanded ? { top: 18, right: 32, left: 20, bottom: 34 } : { top: 10, right: 16, left: -6, bottom: 22 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
+          <XAxis
+            type="number" dataKey="x" domain={[0, 'auto']} tickFormatter={(v: number) => `${Math.round(v)}%`}
+            axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: expanded ? 14 : 12 }}
+          >
+            <Label value="Disturbance indicators (% of survey)" position="insideBottom" offset={-14} fill={c.tickX} fontSize={expanded ? 14 : 12} />
+          </XAxis>
+          <YAxis
+            type="number" dataKey="y" domain={['auto', 'auto']} tickFormatter={(v: number) => `${Math.round(v)}%`}
+            axisLine={false} tickLine={false} tick={{ fill: c.tickLeft, fontSize: expanded ? 14 : 12 }}
+          >
+            <Label value="Live coral cover (%)" angle={-90} position="insideLeft" offset={16} fill={c.tickLeft} fontSize={expanded ? 14 : 12} />
+          </YAxis>
+          <Tooltip
+            {...c.tooltip}
+            cursor={{ strokeDasharray: '3 3' }}
+            formatter={(v) => (typeof v === 'number' ? `${fmt1(v)}%` : String(v))}
+          />
+          {!expanded && <Legend iconType="circle" iconSize={9} verticalAlign="top" wrapperStyle={{ paddingBottom: '8px', fontSize: 12 }} formatter={legendText} />}
+          {!expanded && SCENARIOS.map((scenario) => {
+            const x = scenarios[scenario.key].disturbance * 100;
+            const active = scenario.key === level;
+            return (
+              <ReferenceLine
+                key={scenario.key} x={x} stroke={active ? c.amber : c.muted} strokeWidth={active ? 2 : 1}
+                strokeDasharray={active ? undefined : '4 4'}
+              >
+                {(!narrow || active) && (
+                  <Label value={scenario.short} position="insideTopRight" fill={active ? c.tickRight : c.muted} fontSize={11} fontWeight="bold" />
+                )}
+              </ReferenceLine>
+            );
+          })}
+          {visibleSeries.map((series) => (
+            <Line
+              key={`l-${series.island}`} data={series.line} dataKey="y" name={`${series.short} fit`} legendType="none"
+              stroke={series.color} strokeWidth={expanded || series.isProxy ? 3 : 1.5} strokeOpacity={expanded || series.isProxy ? 1 : 0.55}
+              dot={false} activeDot={false} isAnimationActive={false}
+            />
+          ))}
+          {visibleSeries.map((series) => (
+            <Scatter
+              key={`s-${series.island}`} data={series.points} name={series.isProxy ? `${series.short} (proxy reef)` : series.short}
+              fill={series.color} fillOpacity={expanded || series.isProxy ? 1 : 0.7} isAnimationActive={false}
+            />
+          ))}
+        </ComposedChart>
+      </ResponsiveContainer>
+    );
+  };
 
   const compare = SCENARIOS.map((s) => ({ name: s.short, key: s.key, ehi: scenarios[s.key].ehi * 100 }));
 
@@ -82,60 +157,16 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
             <CardHeader
               title="Chart 3 · The disturbance regression"
               sub={`Pooled Ridge: live coral cover ~ disturbance + island fixed effects · ${marine.rows.length} island-year surveys · α = ${marine.alpha}`}
-              right={<Badge tone="teal">SDG 14</Badge>}
+              right={
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge tone="teal">SDG 14</Badge>
+                  <button type="button" onClick={() => setRegressionExpanded(true)} aria-label="Expand disturbance regression" title="Expand chart" className="grid h-9 w-9 place-items-center rounded-lg border border-sky-200 bg-white/70 text-sky-700 transition hover:border-cyan-400 hover:bg-cyan-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-800 dark:bg-slate-900/70 dark:text-sky-200 dark:hover:bg-slate-800">
+                    <Expand size={16} />
+                  </button>
+                </div>
+              }
             />
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart margin={{ top: 10, right: 16, left: -6, bottom: 22 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={c.grid} />
-                  <XAxis
-                    type="number" dataKey="x" domain={[0, 'auto']} tickFormatter={(v: number) => `${Math.round(v)}%`}
-                    axisLine={false} tickLine={false} tick={{ fill: c.tickX, fontSize: 12 }}
-                  >
-                    <Label value="Disturbance indicators (% of survey)" position="insideBottom" offset={-14} fill={c.tickX} fontSize={12} />
-                  </XAxis>
-                  <YAxis
-                    type="number" dataKey="y" domain={['auto', 'auto']} tickFormatter={(v: number) => `${Math.round(v)}%`}
-                    axisLine={false} tickLine={false} tick={{ fill: c.tickLeft, fontSize: 12 }}
-                  >
-                    <Label value="Live coral cover (%)" angle={-90} position="insideLeft" offset={16} fill={c.tickLeft} fontSize={12} />
-                  </YAxis>
-                  <Tooltip
-                    {...c.tooltip}
-                    cursor={{ strokeDasharray: '3 3' }}
-                    formatter={(v) => (typeof v === 'number' ? `${fmt1(v)}%` : String(v))}
-                  />
-                  <Legend iconType="circle" iconSize={9} verticalAlign="top" wrapperStyle={{ paddingBottom: '8px', fontSize: 12 }} formatter={legendText} />
-                  {SCENARIOS.map((s) => {
-                    const x = scenarios[s.key].disturbance * 100;
-                    const active = s.key === level;
-                    return (
-                      <ReferenceLine
-                        key={s.key} x={x} stroke={active ? c.amber : c.muted} strokeWidth={active ? 2 : 1}
-                        strokeDasharray={active ? undefined : '4 4'}
-                      >
-                        {(!narrow || active) && (
-                          <Label value={s.short} position="insideTopRight" fill={active ? c.tickRight : c.muted} fontSize={11} fontWeight="bold" />
-                        )}
-                      </ReferenceLine>
-                    );
-                  })}
-                  {chart.map((s) => (
-                    <Line
-                      key={`l-${s.island}`} data={s.line} dataKey="y" name={`${s.short} fit`} legendType="none"
-                      stroke={s.color} strokeWidth={s.isProxy ? 3 : 1.5} strokeOpacity={s.isProxy ? 1 : 0.55}
-                      dot={false} activeDot={false} isAnimationActive={false}
-                    />
-                  ))}
-                  {chart.map((s) => (
-                    <Scatter
-                      key={`s-${s.island}`} data={s.points} name={s.isProxy ? `${s.short} (proxy reef)` : s.short}
-                      fill={s.color} fillOpacity={s.isProxy ? 1 : 0.7} isAnimationActive={false}
-                    />
-                  ))}
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+            <div className="h-80">{renderRegressionChart(false)}</div>
             <p className="mt-3 text-xs text-sky-700/80 dark:text-sky-300/80">
               Points are surveys; lines are the model&apos;s fit for each reef (same slope, island-specific intercept). Vertical markers show the
               three disturbance scenarios applied to {proxyShort} ({pct1(scenarios.optimal.disturbance)}, {pct1(scenarios.current.disturbance)}, {pct1(scenarios.crisis.disturbance)}).
@@ -262,6 +293,29 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
         disturbance). Model LOO MAE is {marine.looMae.toFixed(3)} vs baseline {marine.baselineMae.toFixed(3)} ({fmt1(marine.skillPct)}% skill
         better than baseline). Visitors operate through disturbance, not directly.
       </Callout>
+
+      {regressionExpanded && (
+        <div className="fixed inset-0 z-[110] grid place-items-center bg-sky-950/45 p-3 backdrop-blur-sm sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setRegressionExpanded(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="expanded-disturbance-title" className="flex h-[min(92vh,980px)] w-full max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-sky-200 bg-white/95 p-4 shadow-2xl shadow-sky-950/30 sm:p-6 dark:border-sky-800 dark:bg-slate-950/95">
+            <header className="flex shrink-0 flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">Micro Stress-Test · Tioman</p>
+                <h2 id="expanded-disturbance-title" className="mt-1 text-xl font-black text-sky-950 dark:text-white sm:text-2xl">The disturbance regression</h2>
+                <p className="mt-1 text-xs text-sky-700 dark:text-sky-300">Pooled Ridge · coral cover versus disturbance · {marine.allIslands.length} island fixed effects</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <label htmlFor="regression-island" className="text-xs font-bold text-sky-800 dark:text-sky-200">Island</label>
+                <select id="regression-island" value={selectedIsland} onChange={(event) => setSelectedIsland(event.target.value)} className="max-w-48 cursor-pointer rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-900 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-100">
+                  {chart.map((series) => <option key={series.island} value={series.island}>{series.short}</option>)}
+                </select>
+                <button type="button" onClick={() => setRegressionExpanded(false)} aria-label="Close expanded disturbance regression" title="Close expanded chart" autoFocus className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-sky-200 bg-white text-sky-700 transition hover:bg-sky-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-200 dark:hover:bg-slate-800"><Minimize2 size={17} /></button>
+              </div>
+            </header>
+            <p className="mt-2 shrink-0 text-xs text-sky-700 dark:text-sky-300">Showing survey points and fitted line for {chart.find((series) => series.island === selectedIsland)?.short ?? 'Tioman'} only.</p>
+            <div className="mt-2 min-h-0 flex-1">{renderRegressionChart(true)}</div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

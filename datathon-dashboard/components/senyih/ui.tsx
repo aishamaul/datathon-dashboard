@@ -26,10 +26,10 @@ export const CardHeader = ({ title, sub, right }: { title: string; sub?: string;
     <div className="flex items-start justify-between gap-3 mb-4">
       <div className="min-w-0">
         {eyebrow && (
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-600 dark:text-cyan-300">{eyebrow}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-600 dark:text-cyan-300">{eyebrow}</p>
         )}
-        <h3 className="text-[15px] font-bold tracking-tight text-sky-950 dark:text-sky-50 leading-tight">{main}</h3>
-        {sub && <p className="text-xs leading-relaxed text-sky-700/75 dark:text-sky-300/70 mt-1">{sub}</p>}
+        <h3 className="text-lg font-bold tracking-tight text-sky-950 dark:text-sky-50 leading-tight">{main}</h3>
+        {sub && <p className="text-sm leading-relaxed text-sky-700/75 dark:text-sky-300/70 mt-1">{sub}</p>}
       </div>
       {right}
     </div>
@@ -44,12 +44,12 @@ const badgeTones = {
 };
 
 export const Badge = ({ children, tone = 'sky' }: { children: ReactNode; tone?: keyof typeof badgeTones }) => (
-  <span className={`shrink-0 px-3 py-1 text-[11px] font-bold rounded-full border ${badgeTones[tone]}`}>{children}</span>
+  <span className={`shrink-0 px-3 py-1 text-xs font-bold rounded-full border ${badgeTones[tone]}`}>{children}</span>
 );
 
 /** Badge with a pulsing dot, for the live simulator. */
 export const LiveBadge = ({ children }: { children: ReactNode }) => (
-  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-[11px] font-bold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-200">
+  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-200">
     <span className="relative flex h-2 w-2" aria-hidden="true">
       <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 motion-safe:animate-ping" />
       <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
@@ -80,7 +80,7 @@ export const Ring = ({ value, id }: { value: number; id: string }) => {
         transform="rotate(-90 38 38)"
         style={{ filter: 'drop-shadow(0 2px 4px rgba(14,165,233,0.35))' }}
       />
-      <text x="38" y="43" textAnchor="middle" fontSize="14" fontWeight="800" fill={c.ringText}>{shown}%</text>
+      <text x="38" y="43" textAnchor="middle" fontSize="16" fontWeight="800" fill={c.ringText}>{shown}%</text>
     </svg>
   );
 };
@@ -109,10 +109,10 @@ export const StatTile = ({
       <Ring value={ring} id={id} />
       <div className="min-w-0">
         <p className="flex flex-wrap items-baseline gap-x-1.5 leading-none">
-          <span className="text-3xl font-black tracking-tight tabular-nums text-sky-950 dark:text-sky-50">{value}</span>
-          {unit && <span className="text-sm font-bold text-sky-600 dark:text-sky-300">{unit}</span>}
+          <span className="text-4xl font-black tracking-tight tabular-nums text-sky-950 dark:text-sky-50">{value}</span>
+          {unit && <span className="text-base font-bold text-sky-600 dark:text-sky-300">{unit}</span>}
         </p>
-        <p className="text-xs leading-relaxed text-sky-700/75 dark:text-sky-300/70 mt-2">{note}</p>
+        <p className="text-sm leading-relaxed text-sky-700/75 dark:text-sky-300/70 mt-2">{note}</p>
       </div>
     </div>
   </GlassCard>
@@ -136,7 +136,7 @@ export const DnaTile = ({ weights, island }: { weights: DnaWeights; island: stri
       </div>
       <ul className="mt-3 space-y-1.5">
         {parts.map((p) => (
-          <li key={p.key} className="flex items-center justify-between text-sm">
+          <li key={p.key} className="flex items-center justify-between text-base">
             <span className="flex items-center gap-2 font-semibold text-sky-800 dark:text-sky-200">
               <span className={`h-2.5 w-2.5 rounded-full ${p.dot}`} />
               {p.key}
@@ -157,8 +157,8 @@ export const Callout = ({ title, children, tone = 'amber' }: { title?: string; c
   return (
     <div className={`senyih-fade rounded-3xl border px-5 py-4 flex gap-3 items-start backdrop-blur-xl ${tones[tone]}`} role="note">
       <Info size={18} className="mt-0.5 shrink-0" />
-      <div className="text-sm leading-relaxed">
-        {title && <p className="font-black mb-0.5">{title}</p>}
+      <div className="text-base leading-relaxed">
+        {title && <p className="text-lg font-black mb-1">{title}</p>}
         {children}
       </div>
     </div>

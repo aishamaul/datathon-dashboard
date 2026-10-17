@@ -167,7 +167,7 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
               }
             />
             <div className="h-80">{renderRegressionChart(false)}</div>
-            <p className="mt-3 text-xs text-sky-700/80 dark:text-sky-300/80">
+            <p className="mt-3 text-sm leading-relaxed text-sky-700/80 dark:text-sky-300/80">
               Points are surveys; lines are the model&apos;s fit for each reef (same slope, island-specific intercept). Vertical markers show the
               three disturbance scenarios applied to {proxyShort} ({pct1(scenarios.optimal.disturbance)}, {pct1(scenarios.current.disturbance)}, {pct1(scenarios.crisis.disturbance)}).
             </p>
@@ -220,7 +220,7 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
               right={<LiveBadge>Live</LiveBadge>}
             />
 
-            <label htmlFor="mgmt-level" className="text-xs font-bold text-sky-800 dark:text-sky-200">
+            <label htmlFor="mgmt-level" className="text-sm font-bold text-sky-800 dark:text-sky-200">
               Disturbance management level
             </label>
             <input
@@ -240,8 +240,8 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
                       : 'bg-white/70 text-sky-700 border-sky-200 hover:bg-white dark:bg-slate-800/60 dark:text-sky-200 dark:border-sky-800/60 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <span className="block text-xs font-black">{s.short}</span>
-                  <span className="block text-[11px] opacity-80">{pct1(scenarios[s.key].disturbance)} disturbed</span>
+                  <span className="block text-sm font-black">{s.short}</span>
+                  <span className="block text-xs opacity-80">{pct1(scenarios[s.key].disturbance)} disturbed</span>
                 </button>
               ))}
             </div>
@@ -250,9 +250,9 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
             <div className="relative mt-5 overflow-hidden rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-700 text-white p-6 shadow-lg shadow-sky-700/25 ring-1 ring-inset ring-white/15">
               <div className="pointer-events-none absolute -right-10 -top-12 h-44 w-44 rounded-full bg-white/15 blur-2xl" aria-hidden="true" />
               <div className="pointer-events-none absolute -bottom-16 -left-8 h-40 w-40 rounded-full bg-cyan-300/20 blur-2xl" aria-hidden="true" />
-              <p className="relative text-xs font-bold text-sky-100">Composite EHI ceiling</p>
-              <p className="relative text-5xl font-black tracking-tight tabular-nums mt-1">{pct1(result.ehi)}</p>
-              <p className="relative text-xs text-sky-100 mt-2">
+              <p className="relative text-sm font-bold text-sky-100">Composite EHI ceiling</p>
+              <p className="relative text-6xl font-black tracking-tight tabular-nums mt-1">{pct1(result.ehi)}</p>
+              <p className="relative text-sm text-sky-100 mt-2">
                 {level === 'current'
                   ? 'Baseline for comparison'
                   : `${ehiDeltaPts > 0 ? '+' : '−'}${Math.abs(ehiDeltaPts).toFixed(1)} pts vs current management`}
@@ -262,26 +262,26 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
 
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-200 p-4 dark:from-amber-500/20 dark:to-amber-500/5 dark:border-amber-500/30">
-                <p className="text-xs font-bold text-amber-700 dark:text-amber-200">Visitor cap</p>
-                <p className="text-2xl font-black text-amber-900 dark:text-amber-100">{fmtInt(result.capK)}k</p>
-                <p className="text-[11px] text-amber-700/80 dark:text-amber-200/80">{signedPct(result.capVsPeakPct)} vs peak</p>
+                <p className="text-sm font-bold text-amber-700 dark:text-amber-200">Visitor cap</p>
+                <p className="text-3xl font-black text-amber-900 dark:text-amber-100">{fmtInt(result.capK)}k</p>
+                <p className="text-xs text-amber-700/80 dark:text-amber-200/80">{signedPct(result.capVsPeakPct)} vs peak</p>
               </div>
               <div className="rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-200 p-4 dark:from-amber-500/20 dark:to-amber-500/5 dark:border-amber-500/30">
-                <p className="text-xs font-bold text-amber-700 dark:text-amber-200">Target ALOS</p>
-                <p className="text-2xl font-black text-amber-900 dark:text-amber-100">{fmt2(result.alos)}</p>
-                <p className="text-[11px] text-amber-700/80 dark:text-amber-200/80">nights per stay</p>
+                <p className="text-sm font-bold text-amber-700 dark:text-amber-200">Target ALOS</p>
+                <p className="text-3xl font-black text-amber-900 dark:text-amber-100">{fmt2(result.alos)}</p>
+                <p className="text-xs text-amber-700/80 dark:text-amber-200/80">nights per stay</p>
               </div>
               <div className="rounded-2xl border border-sky-200 bg-white/70 p-4 dark:border-sky-800/60 dark:bg-slate-800/50">
-                <p className="text-xs font-bold text-sky-700 dark:text-sky-300">Best EHI in search</p>
-                <p className="text-2xl font-black">{pct1(result.ehiMax)}</p>
-                <p className="text-[11px] text-sky-700/80 dark:text-sky-300/80">any volume / ALOS tried</p>
+                <p className="text-sm font-bold text-sky-700 dark:text-sky-300">Best EHI in search</p>
+                <p className="text-3xl font-black">{pct1(result.ehiMax)}</p>
+                <p className="text-xs text-sky-700/80 dark:text-sky-300/80">any volume / ALOS tried</p>
               </div>
               <div className="rounded-2xl border border-sky-200 bg-white/70 p-4 dark:border-sky-800/60 dark:bg-slate-800/50">
-                <p className="text-xs font-bold text-sky-700 dark:text-sky-300">Arrival headroom</p>
-                <p className="text-2xl font-black">
+                <p className="text-sm font-bold text-sky-700 dark:text-sky-300">Arrival headroom</p>
+                <p className="text-3xl font-black">
                   {result.sustainableCeilingK === null ? 'None' : `${fmtInt(result.sustainableCeilingK)}k`}
                 </p>
-                <p className="text-[11px] text-sky-700/80 dark:text-sky-300/80">max arrivals at today&apos;s EHI</p>
+                <p className="text-xs text-sky-700/80 dark:text-sky-300/80">max arrivals at today&apos;s EHI</p>
               </div>
             </div>
           </GlassCard>
@@ -299,19 +299,19 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
           <section role="dialog" aria-modal="true" aria-labelledby="expanded-disturbance-title" className="flex h-[min(92vh,980px)] w-full max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-sky-200 bg-white/95 p-4 shadow-2xl shadow-sky-950/30 sm:p-6 dark:border-sky-800 dark:bg-slate-950/95">
             <header className="flex shrink-0 flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">Micro Stress-Test · Tioman</p>
-                <h2 id="expanded-disturbance-title" className="mt-1 text-xl font-black text-sky-950 dark:text-white sm:text-2xl">The disturbance regression</h2>
-                <p className="mt-1 text-xs text-sky-700 dark:text-sky-300">Pooled Ridge · coral cover versus disturbance · {marine.allIslands.length} island fixed effects</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">Micro Stress-Test · Tioman</p>
+                <h2 id="expanded-disturbance-title" className="mt-1 text-2xl font-black text-sky-950 dark:text-white sm:text-3xl">The disturbance regression</h2>
+                <p className="mt-1 text-sm text-sky-700 dark:text-sky-300">Pooled Ridge · coral cover versus disturbance · {marine.allIslands.length} island fixed effects</p>
               </div>
               <div className="flex items-center gap-3">
-                <label htmlFor="regression-island" className="text-xs font-bold text-sky-800 dark:text-sky-200">Island</label>
-                <select id="regression-island" value={selectedIsland} onChange={(event) => setSelectedIsland(event.target.value)} className="max-w-48 cursor-pointer rounded-lg border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-900 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-100">
+                <label htmlFor="regression-island" className="text-sm font-bold text-sky-800 dark:text-sky-200">Island</label>
+                <select id="regression-island" value={selectedIsland} onChange={(event) => setSelectedIsland(event.target.value)} className="max-w-48 cursor-pointer rounded-lg border border-sky-200 bg-white px-3 py-2 text-base font-semibold text-sky-900 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-100">
                   {chart.map((series) => <option key={series.island} value={series.island}>{series.short}</option>)}
                 </select>
                 <button type="button" onClick={() => setRegressionExpanded(false)} aria-label="Close expanded disturbance regression" title="Close expanded chart" autoFocus className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-sky-200 bg-white text-sky-700 transition hover:bg-sky-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-200 dark:hover:bg-slate-800"><Minimize2 size={17} /></button>
               </div>
             </header>
-            <p className="mt-2 shrink-0 text-xs text-sky-700 dark:text-sky-300">Showing survey points and fitted line for {chart.find((series) => series.island === selectedIsland)?.short ?? 'Tioman'} only.</p>
+            <p className="mt-2 shrink-0 text-sm text-sky-700 dark:text-sky-300">Showing survey points and fitted line for {chart.find((series) => series.island === selectedIsland)?.short ?? 'Tioman'} only.</p>
             <div className="mt-2 min-h-0 flex-1">{renderRegressionChart(true)}</div>
           </section>
         </div>

@@ -236,7 +236,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
               </ResponsiveContainer>
             )}
           </div>
-          <p className="mt-3 text-xs text-sky-700/80 dark:text-sky-300/80">
+          <p className="mt-3 text-sm leading-relaxed text-sky-700/80 dark:text-sky-300/80">
             Revenue earned per tonne of waste. Falling values mean each ringgit now costs more waste.
           </p>
         </GlassCard>
@@ -314,11 +314,11 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
           <section role="dialog" aria-modal="true" aria-labelledby="expanded-langkawi-chart-title" className="flex h-[min(92vh,980px)] w-full max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-sky-200 bg-white/95 p-4 shadow-2xl shadow-sky-950/30 sm:p-6 dark:border-sky-800 dark:bg-slate-950/95">
             <header className="flex shrink-0 items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">Macro Anchor · Langkawi</p>
-                <h2 id="expanded-langkawi-chart-title" className="mt-1 text-xl font-black text-sky-950 dark:text-white sm:text-2xl">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">Macro Anchor · Langkawi</p>
+                <h2 id="expanded-langkawi-chart-title" className="mt-1 text-2xl font-black text-sky-950 dark:text-white sm:text-3xl">
                   {expandedChart === 'pareto' ? 'The Pareto equilibrium' : 'Actionable monthly quotas'}
                 </h2>
-                <p className="mt-1 text-xs text-sky-700 dark:text-sky-300">
+                <p className="mt-1 text-sm text-sky-700 dark:text-sky-300">
                   {expandedChart === 'pareto'
                     ? `${fmtInt(N_SEARCH)} stochastic scenarios · Utopia point: ${fmtInt(s.capK)}k cap, ${fmt2(s.alos)} nights`
                     : forecast ? `${forecast.forecastYear} · Annual cap ${fmtInt(s.capK)}k visitors` : 'Monthly quotas unavailable'}
@@ -336,7 +336,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
       {forecast?.telemetry && (
         <GlassCard className="p-5">
           <CardHeader title={`H1 ${forecast.forecastYear} live check`} sub="Recorded arrivals against the forecast corridor" />
-          <p className="text-sm">
+          <p className="text-base">
             Recorded <b>{fmtInt(forecast.telemetry.actualK)}k</b> over {forecast.telemetry.months} months vs projected{' '}
             <b>{fmtInt(forecast.telemetry.projectedK)}k</b> (95% corridor {fmtInt(forecast.telemetry.lowerK)}k–{fmtInt(forecast.telemetry.upperK)}k):{' '}
             <b>{forecast.telemetry.inside ? 'inside' : 'outside'}</b> the corridor.

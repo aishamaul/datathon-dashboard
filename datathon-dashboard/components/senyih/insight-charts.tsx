@@ -255,10 +255,10 @@ export function RegressionCard({
               </div>
             )}
           </div>
-          <p className="mt-3 text-xs text-sky-700/80 dark:text-sky-300/80">{note}</p>
+          <p className="mt-3 text-sm leading-relaxed text-sky-700/80 dark:text-sky-300/80">{note}</p>
         </>
       ) : (
-        <p className="text-sm font-semibold text-rose-600 dark:text-rose-300">{missing}</p>
+        <p className="text-base font-semibold text-rose-600 dark:text-rose-300">{missing}</p>
       )}
     </GlassCard>
   );
@@ -312,12 +312,12 @@ export function EconomicYieldCard({ yieldData }: { yieldData: EconomicYieldPoint
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <p className="mt-3 text-xs text-sky-700/80 dark:text-sky-300/80">
+          <p className="mt-3 text-sm leading-relaxed text-sky-700/80 dark:text-sky-300/80">
             Tourism receipts divided by visitor arrivals for the same year. Rising values mean each trip is worth more to the island&apos;s economy.
           </p>
         </>
       ) : (
-        <p className="text-sm font-semibold text-rose-600 dark:text-rose-300">
+        <p className="text-base font-semibold text-rose-600 dark:text-rose-300">
           Needs Tourism_Receipts_RM_mil and Domestic_Visitors_k for at least one year in Langkawi_Socioeconomic_Master.
         </p>
       )}
@@ -421,7 +421,7 @@ export function CatalystCard({ catalyst }: { catalyst: CatalystResult }) {
             <Badge tone="teal">Post-policy mean ({test.postFrom}–{test.postTo}): {fmt2(test.mean2)} nights</Badge>
             <Badge tone={significant ? 'amber' : 'rose'}>Welch t = {minus(test.t.toFixed(4))} · p = {test.p < 0.0001 ? '< 0.0001' : test.p.toFixed(5)}</Badge>
           </div>
-          <p className="mt-3 text-xs text-sky-700/80 dark:text-sky-300/80">
+          <p className="mt-3 text-sm leading-relaxed text-sky-700/80 dark:text-sky-300/80">
             {significant
               ? `Stays from ${test.postFrom} are ${signedPct(changePct)} against the pre-policy average (${fmt2(test.mean1)} to ${fmt2(test.mean2)} nights), a statistically significant difference at the 5% level.`
               : `Stays from ${test.postFrom} differ by ${signedPct(changePct)} from the pre-policy average, which is not statistically significant at the 5% level.`}
@@ -429,7 +429,7 @@ export function CatalystCard({ catalyst }: { catalyst: CatalystResult }) {
           </p>
         </>
       ) : (
-        <p className="mt-3 text-xs text-sky-700/80 dark:text-sky-300/80">
+        <p className="mt-3 text-sm leading-relaxed text-sky-700/80 dark:text-sky-300/80">
           The before/after test needs at least two years on each side of {catalyst.blueprintYear}.
         </p>
       )}
@@ -439,15 +439,15 @@ export function CatalystCard({ catalyst }: { catalyst: CatalystResult }) {
           <section role="dialog" aria-modal="true" aria-labelledby="expanded-catalyst-title" className="flex h-[min(92vh,980px)] w-full max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-sky-200 bg-white/95 p-4 shadow-2xl shadow-sky-950/30 sm:p-6 dark:border-sky-800 dark:bg-slate-950/95">
             <header className="flex shrink-0 items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">Policy · Langkawi</p>
-                <h2 id="expanded-catalyst-title" className="mt-1 text-xl font-black text-sky-950 dark:text-white sm:text-2xl">Policy catalyst · Average length of stay</h2>
-                <p className="mt-1 text-xs text-sky-700 dark:text-sky-300">Policy milestones and average stay, {points[0].year}–{points[points.length - 1].year}</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-700 dark:text-cyan-300">Policy · Langkawi</p>
+                <h2 id="expanded-catalyst-title" className="mt-1 text-2xl font-black text-sky-950 dark:text-white sm:text-3xl">Policy catalyst · Average length of stay</h2>
+                <p className="mt-1 text-sm text-sky-700 dark:text-sky-300">Policy milestones and average stay, {points[0].year}–{points[points.length - 1].year}</p>
               </div>
               <button type="button" onClick={() => setExpanded(false)} aria-label="Close expanded policy catalyst chart" title="Close expanded chart" autoFocus className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-sky-200 bg-white text-sky-700 transition hover:bg-sky-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-200 dark:hover:bg-slate-800"><Minimize2 size={17} /></button>
             </header>
             <div className="mt-4 grid shrink-0 gap-2 border-y border-sky-100 py-3 dark:border-sky-800 sm:grid-cols-3" aria-label="Policy milestones">
               {milestones.map((milestone) => (
-                <div key={milestone.year} className="flex items-center gap-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
+                <div key={milestone.year} className="flex items-center gap-2 text-base font-semibold text-sky-900 dark:text-sky-100">
                   <span className="h-0.5 w-5 shrink-0 bg-rose-500" aria-hidden="true" />
                   <span className="text-rose-700 dark:text-rose-300">{milestone.year}</span>
                   <span>{milestone.label}</span>
@@ -535,7 +535,7 @@ export function CoralChangeCard({ coral }: { coral: CoralChangeResult }) {
         {proxy && <Badge tone="teal">{proxy.island}: {signedPct(proxy.changePct, 2)}</Badge>}
       </div>
       {proxy && (
-        <p className="mt-3 text-xs text-sky-700/80 dark:text-sky-300/80">
+        <p className="mt-3 text-sm leading-relaxed text-sky-700/80 dark:text-sky-300/80">
           {proxyShort} changed by {signedPct(proxy.changePct, 2)} against an island average of {signedPct(coral.mean, 2)}, which is{' '}
           {Math.abs(proxy.z).toFixed(2)} standard deviations {proxy.z >= 0 ? 'above' : 'below'} the mean resilience baseline
           {proxy.z >= 1 ? ", consistent with Langkawi's marine management shielding its proxy reef." : '.'}

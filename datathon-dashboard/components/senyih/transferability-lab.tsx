@@ -46,9 +46,9 @@ function DnaDonut({ dna, size = 220 }: { dna: TourismDNA; size?: number }) {
 function StepHeader({ step, title, sub, badge }: { step: string; title: string; sub: string; badge?: ReactNode }) {
   return (
     <div className="mb-5 text-center">
-      <span className="mx-auto inline-grid h-8 w-8 place-items-center rounded-full border border-cyan-300 bg-cyan-50 text-xs font-black text-cyan-800 dark:border-cyan-500/40 dark:bg-cyan-500/10 dark:text-cyan-200">{step}</span>
-      <h3 className="mt-2 text-base font-black tracking-tight text-sky-950 dark:text-sky-50">{title}</h3>
-      <p className="mt-1 text-xs leading-relaxed text-sky-700/75 dark:text-sky-300/70">{sub}</p>
+      <span className="mx-auto inline-grid h-9 w-9 place-items-center rounded-full border border-cyan-300 bg-cyan-50 text-sm font-black text-cyan-800 dark:border-cyan-500/40 dark:bg-cyan-500/10 dark:text-cyan-200">{step}</span>
+      <h3 className="mt-2 text-lg font-black tracking-tight text-sky-950 dark:text-sky-50">{title}</h3>
+      <p className="mt-1 text-sm leading-relaxed text-sky-700/75 dark:text-sky-300/70">{sub}</p>
       {badge && <div className="mt-2">{badge}</div>}
     </div>
   );
@@ -72,11 +72,11 @@ function EvidenceBar({ share, peakShare, color }: { share: number; peakShare?: n
 function EvidenceTile({ label, value, note, feeds, children }: { label: string; value: string; note: string; feeds: string; children: ReactNode }) {
   return (
     <div className="flex flex-col rounded-xl border border-sky-200/80 bg-white/70 p-3 dark:border-sky-800/60 dark:bg-slate-950/30">
-      <p className="text-[10px] font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">{label}</p>
-      <p className="mt-1 text-lg font-black leading-none tabular-nums text-sky-950 dark:text-white">{value}</p>
+      <p className="text-xs font-black uppercase tracking-wide text-sky-600 dark:text-sky-300">{label}</p>
+      <p className="mt-1 text-xl font-black leading-tight tabular-nums text-sky-950 dark:text-white">{value}</p>
       {children}
-      <p className="mt-2 text-[11px] leading-snug text-sky-700/80 dark:text-sky-200/75">{note}</p>
-      <p className="mt-auto pt-2 text-[10px] font-black uppercase tracking-wide text-cyan-700 dark:text-cyan-300">Feeds &rarr; {feeds}</p>
+      <p className="mt-2 text-xs leading-snug text-sky-700/80 dark:text-sky-200/75">{note}</p>
+      <p className="mt-auto pt-2 text-[11px] font-black uppercase tracking-wide text-cyan-700 dark:text-cyan-300">Feeds &rarr; {feeds}</p>
     </div>
   );
 }
@@ -90,7 +90,7 @@ function EvidencePanel({ data, custom }: { data: IslandDemoProfile['supportingDa
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-sm font-black">Evidence behind the analysis</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-sky-700/80 dark:text-sky-200/75">The DNA only sets how much each pillar counts. These island figures set the limits the scenarios are tested against.</p>
+          <p className="mt-0.5 text-sm leading-relaxed text-sky-700/80 dark:text-sky-200/75">The DNA only sets how much each pillar counts. These island figures set the limits the scenarios are tested against.</p>
         </div>
         <Badge tone="amber">SYNTHETIC</Badge>
       </div>
@@ -410,7 +410,7 @@ function SimulationResults({ result, islandName, scenario, onScenarioChange, can
   );
 }
 
-function Stat({ label, value, detail }: { label: string; value: string; detail?: string }) { return <div className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 dark:border-cyan-500/25 dark:bg-cyan-500/10"><p className="text-[10px] font-black uppercase tracking-wide text-cyan-700 dark:text-cyan-300">{label}</p><p className="mt-2 text-xl font-black tabular-nums text-sky-950 dark:text-white">{value}</p>{detail && <p className="mt-2 text-xs leading-relaxed text-sky-800/80 dark:text-sky-100/80">{detail}</p>}</div>; }
+function Stat({ label, value, detail }: { label: string; value: string; detail?: string }) { return <div className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 dark:border-cyan-500/25 dark:bg-cyan-500/10"><p className="text-xs font-black uppercase tracking-wide text-cyan-700 dark:text-cyan-300">{label}</p><p className="mt-2 text-3xl font-black tabular-nums text-sky-950 dark:text-white">{value}</p>{detail && <p className="mt-2 text-sm leading-relaxed text-sky-800/80 dark:text-sky-100/80">{detail}</p>}</div>; }
 
 function Comparison({ currentName, dna, result }: { currentName: string; dna: TourismDNA; result: IllustrativeResult | null }) {
   const current = { name: currentName, dna, constraint: result ? formatPressure(result.bindingConstraint) : 'Additional data required', cap: result ? fmtInt(result.visitorCap) : '—', alos: result ? `${result.targetALOS.toFixed(2)} nights` : '—', ehi: result ? pct1(result.ehi) : '—', priority: result?.recommendations[0] ?? 'Qualitative profile only', status: result ? 'Illustrative simulation' : 'DNA only' };

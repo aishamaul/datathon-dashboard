@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { Palmtree, TriangleAlert, Waves } from 'lucide-react';
 import { buildAnalysis, type Analysis } from '@/lib/engine/analysis';
 import { N_SEARCH } from '@/lib/engine/pareto';
-import { fmtInt, pct1 } from '@/lib/format';
+import { fmtInt } from '@/lib/format';
 import { GlassCard } from '@/components/senyih/ui';
 import { LangkawiPage } from '@/components/senyih/langkawi-page';
 import { TiomanPage } from '@/components/senyih/tioman-page';
@@ -107,8 +107,8 @@ export default function DashboardApp() {
             {analysis && (
               <div className="hidden md:flex items-center gap-6 pl-6 border-l border-sky-200 dark:border-sky-800/60">
                 <div>
-                  <p className="text-2xl font-black leading-none tabular-nums">{pct1(analysis.marine.r2)}</p>
-                  <p className="text-xs text-sky-700/70 dark:text-sky-300/70 mt-1">Coral variance explained</p>
+                  <p className="text-2xl font-black leading-none tabular-nums">{analysis.marine.r2.toFixed(3)}</p>
+                  <p className="text-xs text-sky-700/70 dark:text-sky-300/70 mt-1">Ridge model fit R<sup>2</sup></p>
                 </div>
                 <div>
                   <p className="text-2xl font-black leading-none tabular-nums flex items-center gap-1.5">

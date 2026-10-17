@@ -289,7 +289,7 @@ export function TiomanPage({ analysis }: { analysis: Analysis }) {
       </div>
 
       <Callout tone="sky" title="What the regression shows">
-        Disturbance explains {fmt1(marine.r2 * 100)}% of variance in live coral cover (coefficient {marine.disturbanceCoef.toFixed(2)} per unit of
+        Model fit R<sup>2</sup> = {fmt1(marine.r2)} (coefficient {marine.disturbanceCoef.toFixed(2)} per unit of
         disturbance). Model LOO MAE is {marine.looMae.toFixed(3)} vs baseline {marine.baselineMae.toFixed(3)} ({fmt1(marine.skillPct)}% skill
         better than baseline). Visitors operate through disturbance, not directly.
       </Callout>

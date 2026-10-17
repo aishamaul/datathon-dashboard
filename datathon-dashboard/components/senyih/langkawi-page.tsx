@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Expand, Minimize2 } from 'lucide-react';
 import {
-  Area, Bar, CartesianGrid, Cell, ComposedChart, Label, LabelList, Legend, Line, LineChart, ReferenceDot,
+  Area, Bar, CartesianGrid, ComposedChart, Label, LabelList, Legend, Line, LineChart, ReferenceDot,
   ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import type { Analysis } from '@/lib/engine/analysis';
@@ -100,7 +100,6 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
   );
 
   const renderQuotaChart = (expanded: boolean) => {
-    const gradientPrefix = expanded ? 'lk-quota-expanded' : 'lk-quota';
     return quotaData && forecast ? (
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={quotaData} margin={expanded ? { top: 20, right: 14, left: 10, bottom: 34 } : { top: 10, right: 4, left: 4, bottom: 22 }}>
@@ -120,29 +119,8 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
             formatter={(v) => (Array.isArray(v) ? `${fmtInt(Number(v[0]))}k – ${fmtInt(Number(v[1]))}k` : `${fmtInt(Number(v))}k`)}
           />
           <Legend iconType="circle" iconSize={9} verticalAlign="top" wrapperStyle={{ paddingBottom: '8px', fontSize: expanded ? 14 : 12 }} formatter={legendText} />
-          <defs>
-            <linearGradient id={`${gradientPrefix}-bar`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={c.skyBright} />
-              <stop offset="100%" stopColor={c.sky} stopOpacity={0.75} />
-            </linearGradient>
-            <linearGradient id={`${gradientPrefix}-peak`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={c.amber} />
-              <stop offset="100%" stopColor={c.amber} stopOpacity={0.7} />
-            </linearGradient>
-            <linearGradient id={`${gradientPrefix}-trough`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={c.rose} />
-              <stop offset="100%" stopColor={c.rose} stopOpacity={0.7} />
-            </linearGradient>
-          </defs>
           <Area yAxisId="right" dataKey="band" name="Demand 95% band" stroke="none" fill={c.amber} fillOpacity={0.16} isAnimationActive={false} />
-          <Bar yAxisId="left" dataKey="quota" name="Enforced quota" fill={`url(#${gradientPrefix}-bar)`} radius={[8, 8, 0, 0]} maxBarSize={expanded ? 48 : 30}>
-            {quotaData.map((q) => (
-              <Cell
-                key={q.label}
-                fill={q.label === forecast.peak.label ? `url(#${gradientPrefix}-peak)` : q.label === forecast.trough.label ? `url(#${gradientPrefix}-trough)` : `url(#${gradientPrefix}-bar)`}
-              />
-            ))}
-          </Bar>
+          <Bar yAxisId="left" dataKey="quota" name="Enforced quota" fill={c.skyBright} radius={[8, 8, 0, 0]} maxBarSize={expanded ? 48 : 30} />
           <Line yAxisId="right" type="monotone" dataKey="demand" name="SARIMAX demand" stroke={c.tickRight} strokeWidth={2} strokeDasharray="5 4" dot={false} />
         </ComposedChart>
       </ResponsiveContainer>
@@ -269,7 +247,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
           <CardHeader
             title="Chart 2B · Actionable monthly quotas"
             sub={forecast
-              ? `${forecast.forecastYear}: ${fmtInt(s.capK)}k cap split by SARIMAX seasonal shape · peak ${forecast.peak.label} ${fmtInt(forecast.peak.quotaK)}k, trough ${forecast.trough.label} ${fmtInt(forecast.trough.quotaK)}k`
+              ? `${forecast.forecastYear} forecast: ${fmtInt(s.capK)}k cap split by SARIMAX seasonal shape · peak ${forecast.peak.label} ${fmtInt(forecast.peak.quotaK)}k, trough ${forecast.trough.label} ${fmtInt(forecast.trough.quotaK)}k`
               : 'Monthly quotas unavailable'}
             right={
               <div className="flex shrink-0 items-center gap-2">

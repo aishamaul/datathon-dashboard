@@ -281,7 +281,7 @@ export function EconomicYieldCard({ yieldData }: { yieldData: EconomicYieldPoint
   return (
     <GlassCard className="p-6">
       <CardHeader
-        title="Chart 1B · Economic yield"
+        title="Economy · Economic yield per visitor"
         sub={yieldData.length ? `Tourism receipts per visitor-trip, ${first.year}–${last.year}` : 'Tourism receipts per visitor-trip'}
         right={yieldData.length >= 2 ? <Badge tone={changePct >= 0 ? 'teal' : 'rose'}>{signedPct(changePct)} since {first.year}</Badge> : undefined}
       />
@@ -492,7 +492,6 @@ export function CoralChangeCard({ coral }: { coral: CoralChangeResult }) {
     [coral],
   );
   const proxy = coral.proxy;
-  const proxyShort = proxy ? proxy.island.replace(/^Pulau\s+/i, '') : '';
   const span = coral.lastYear - coral.firstYear + 1;
 
   return (
@@ -500,7 +499,7 @@ export function CoralChangeCard({ coral }: { coral: CoralChangeResult }) {
       <CardHeader
         title="Sustainability · Live coral cover change"
         sub={`${span}-year net change in live coral cover, ${coral.firstYear}–${coral.lastYear} (first to last survey)`}
-        right={proxy ? <Badge tone="teal">{proxyShort} {proxy.z >= 0 ? '+' : '−'}{Math.abs(proxy.z).toFixed(2)} SD</Badge> : <Badge tone="teal">SDG 14</Badge>}
+        right={<Badge tone="teal">SDG 14</Badge>}
       />
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
@@ -534,13 +533,6 @@ export function CoralChangeCard({ coral }: { coral: CoralChangeResult }) {
         <Badge tone="amber">Island average: {signedPct(coral.mean, 2)}</Badge>
         {proxy && <Badge tone="teal">{proxy.island}: {signedPct(proxy.changePct, 2)}</Badge>}
       </div>
-      {proxy && (
-        <p className="mt-3 text-sm leading-relaxed text-sky-700/80 dark:text-sky-300/80">
-          {proxyShort} changed by {signedPct(proxy.changePct, 2)} against an island average of {signedPct(coral.mean, 2)}, which is{' '}
-          {Math.abs(proxy.z).toFixed(2)} standard deviations {proxy.z >= 0 ? 'above' : 'below'} the mean resilience baseline
-          {proxy.z >= 1 ? ", consistent with Langkawi's marine management shielding its proxy reef." : '.'}
-        </p>
-      )}
     </GlassCard>
   );
 }

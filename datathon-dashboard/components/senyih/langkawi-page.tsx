@@ -152,13 +152,10 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
         />
       </div>
 
-      {/* Demand: tourist arrivals, yearly or by month */}
-      <ArrivalsTrendCard arrivals={arrivals} />
-
       {/* The economic reality: what tourism revenue buys the island */}
       <div className="senyih-stagger grid grid-cols-1 lg:grid-cols-2 gap-5">
         <RegressionCard
-          title="Chart 1A · Grassroots impact"
+          title="Economy · Grassroots impact"
           result={economy.unemployment}
           tone="rose"
           badgeTone="amber"
@@ -228,7 +225,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
           <WaveBackdrop />
           <div className="relative">
             <CardHeader
-              title="Chart 2A · The Pareto equilibrium"
+              title="Policy · The Pareto equilibrium"
               sub={`${fmtInt(N_SEARCH)} stochastic (volume, ALOS) combinations · ${fmtInt(scatterData.length)} plotted · Utopia point: ${fmtInt(s.capK)}k cap, ${fmt2(s.alos)} nights`}
               right={
                 <div className="flex shrink-0 items-center gap-2">
@@ -245,7 +242,7 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
 
         <GlassCard className="p-6">
           <CardHeader
-            title="Chart 2B · Actionable monthly quotas"
+            title="Policy · Actionable monthly quotas"
             sub={forecast
               ? `${forecast.forecastYear} forecast: ${fmtInt(s.capK)}k cap split by SARIMAX seasonal shape · peak ${forecast.peak.label} ${fmtInt(forecast.peak.quotaK)}k, trough ${forecast.trough.label} ${fmtInt(forecast.trough.quotaK)}k`
               : 'Monthly quotas unavailable'}
@@ -321,6 +318,9 @@ export function LangkawiPage({ analysis }: { analysis: Analysis }) {
           </p>
         </GlassCard>
       )}
+
+      {/* Demand: tourist arrivals, yearly or by month */}
+      <ArrivalsTrendCard arrivals={arrivals} />
 
       <Callout title="Scope of the cap">
         Note: The recommended {fmtInt(s.capK)}k arrival cap applies strictly to LADA-recorded arrivals at Langkawi gateways.

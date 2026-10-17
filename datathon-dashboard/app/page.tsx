@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { Palmtree, TriangleAlert, Waves } from 'lucide-react';
 import { buildAnalysis, type Analysis } from '@/lib/engine/analysis';
 import { N_SEARCH } from '@/lib/engine/pareto';
-import { fmtInt, pct1 } from '@/lib/format';
+import { fmtInt } from '@/lib/format';
 import { GlassCard } from '@/components/senyih/ui';
 import { LangkawiPage } from '@/components/senyih/langkawi-page';
 import { TiomanPage } from '@/components/senyih/tioman-page';
@@ -101,20 +101,20 @@ export default function DashboardApp() {
                 <h1 className="leading-none">
                   <MyPulauMark size="md" />
                 </h1>
-                <p className="mt-1 text-[11px] font-medium text-sky-700/70 dark:text-sky-300/70">DOSM Datathon 2026 · Island tourism policy engine</p>
+                <p className="mt-1 text-xs font-medium text-sky-700/70 dark:text-sky-300/70">DOSM Datathon 2026 · Island tourism policy engine</p>
               </div>
             </div>
             {analysis && (
               <div className="hidden md:flex items-center gap-6 pl-6 border-l border-sky-200 dark:border-sky-800/60">
                 <div>
-                  <p className="text-xl font-black leading-none tabular-nums">{pct1(analysis.marine.r2)}</p>
-                  <p className="text-[11px] text-sky-700/70 dark:text-sky-300/70 mt-1">Coral variance explained</p>
+                  <p className="text-2xl font-black leading-none tabular-nums">{analysis.marine.r2.toFixed(3)}</p>
+                  <p className="text-xs text-sky-700/70 dark:text-sky-300/70 mt-1">Ridge model fit R<sup>2</sup></p>
                 </div>
                 <div>
-                  <p className="text-xl font-black leading-none tabular-nums flex items-center gap-1.5">
+                  <p className="text-2xl font-black leading-none tabular-nums flex items-center gap-1.5">
                     {fmtInt(N_SEARCH)} <Waves size={16} className="text-cyan-500" />
                   </p>
-                  <p className="text-[11px] text-sky-700/70 dark:text-sky-300/70 mt-1">Scenarios searched per island</p>
+                  <p className="text-xs text-sky-700/70 dark:text-sky-300/70 mt-1">Scenarios searched per island</p>
                 </div>
               </div>
             )}
@@ -130,7 +130,7 @@ export default function DashboardApp() {
                   key={p.id}
                   onClick={() => setActivePage(p.id)}
                   aria-current={activePage === p.id ? 'page' : undefined}
-                  className={`flex-1 rounded-full px-4 py-2 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:flex-none sm:px-5 ${
+                  className={`flex-1 whitespace-nowrap rounded-full px-2 py-2 text-base font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 sm:flex-none sm:px-5 ${
                     activePage === p.id
                       ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-500/30'
                       : 'text-sky-700 hover:bg-sky-100/80 dark:text-sky-200 dark:hover:bg-slate-800'
